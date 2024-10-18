@@ -1,0 +1,15 @@
+fonts
+checkpoints
+cocoapi
+dataset
+datasets_torchvision
+experiments
+loss_logs
+outputs
+plots
+results
+temp.json
+output.txt
+earlyStopping.py
+.idea/*
+__pycache__/*
