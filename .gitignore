@@ -14,3 +14,4 @@ earlyStopping.py
 .idea/*
 __pycache__/*
 plotResults.py
+embeddings/*

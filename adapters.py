@@ -16,8 +16,8 @@ class ContrastiveResidualAdapter(nn.Module):
         self.logit_norm = logit_norm
 
     def forward(self, batch):
-        image_features = batch[0].to(device, torch.float32).squeeze()
-        text_features = batch[1].to(device, torch.float32)
+        image_features = batch['image_embeddings'].to(device, torch.float32).squeeze()
+        text_features = batch['texts_embeddings'].to(device, torch.float32)
         c = random.randint(0, text_features.shape[1]-1)
         text_features = text_features[:, c, :]
         # print(text_features.shape, image_features.shape, c)
@@ -43,7 +43,7 @@ class ContrastiveResidualAdapter(nn.Module):
         for batch in train_loader:
             optim.zero_grad()
             logits = self.forward(batch)
-            targets = torch.arange(len(batch[0])).to(device)
+            targets = torch.arange(len(batch['image_embeddings'])).to(device)
             i_loss = nn.CrossEntropyLoss()(logits, targets)
             t_loss = nn.CrossEntropyLoss()(logits.T, targets)
             loss = i_loss + t_loss
@@ -60,7 +60,7 @@ class ContrastiveResidualAdapter(nn.Module):
 
         for batch in val_loader:
             logits = self.forward(batch)
-            targets = torch.arange(len(batch[0])).to(device)
+            targets = torch.arange(len(batch['image_embeddings'])).to(device)
             loss = self.loss(logits, targets)
             epoch_losses.append(loss.detach().cpu())
         return np.mean(epoch_losses)
@@ -92,8 +92,8 @@ class SigAdapter(nn.Module):
         # print(self.logit_bias, self.logit_scale)
 
     def forward(self, batch):
-        image_features = batch[0].to(device, torch.float32).squeeze()
-        text_features = batch[1].to(device, torch.float32)
+        image_features = batch['image_embeddings'].to(device, torch.float32).squeeze()
+        text_features = batch['texts_embeddings'].to(device, torch.float32)
         c = random.randint(0, text_features.shape[1]-1)
         if not self.multi_positive:
             text_features = text_features[:, c, :]
@@ -128,7 +128,7 @@ class SigAdapter(nn.Module):
         self.train()
         epoch_losses = []
         for batch in train_loader:
-            n = len(batch[0])
+            n = len(batch['image_embeddings'])
             optim.zero_grad()
             logits = self.forward(batch)
             targets = self.targets(n).to(device)
@@ -144,7 +144,7 @@ class SigAdapter(nn.Module):
         epoch_losses = []
 
         for batch in val_loader:
-            n = len(batch[0])
+            n = len(batch['image_embeddings'])
             logits = self.forward(batch)
             targets = self.targets(n).to(device)
             loss = -torch.sum(nn.LogSigmoid()(logits * targets)) / n
@@ -164,8 +164,8 @@ class ContrastiveResidualAdapter(nn.Module):
         self.logit_norm = logit_norm
 
     def forward(self, batch):
-        image_features = batch[0].to(device, torch.float32).squeeze()
-        text_features = batch[1].to(device, torch.float32)
+        image_features = batch['image_embeddings'].to(device, torch.float32).squeeze()
+        text_features = batch['texts_embeddings'].to(device, torch.float32)
         c = random.randint(0, text_features.shape[1]-1)
         text_features = text_features[:, c, :]
 
@@ -196,7 +196,7 @@ class ContrastiveResidualAdapter(nn.Module):
         for batch in train_loader:
             optim.zero_grad()
             logits = self.forward(batch)
-            targets = torch.arange(len(batch[0])).to(device)
+            targets = torch.arange(len(batch['image_embeddings'])).to(device)
             loss = self.loss(logits, targets)
             loss.backward()
             optim.step()
@@ -211,7 +211,7 @@ class ContrastiveResidualAdapter(nn.Module):
 
         for batch in val_loader:
             logits = self.forward(batch)
-            targets = torch.arange(len(batch[0])).to(device)
+            targets = torch.arange(len(batch['image_embeddings'])).to(device)
             loss = self.loss(logits, targets)
             epoch_losses.append(loss.detach().cpu())
         return np.mean(epoch_losses)

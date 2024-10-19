@@ -7,7 +7,6 @@ from decoder import OPT
 import torch
 import argparse
 from PIL import Image, ImageFont, ImageDraw
-import evaluate
 from tqdm import tqdm
 from pycocotools.coco import COCO
 from pycocoevalcap.eval import COCOEvalCap
