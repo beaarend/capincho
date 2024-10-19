@@ -69,10 +69,10 @@ if __name__ == '__main__':
 
             checkpoint = torch.load(f'checkpoints/contrastive/{name}.pt')
             adapter.load_state_dict(checkpoint['model_state_dict'])
-            result = evaluate_image_text(f'datasets_torchvision/embeddings/{name}.pkl',
+            result = evaluate_image_text(f'embeddings/{name}.pkl',
                                          adapter.logit_scale, mode=mode)
         else:
-            result = evaluate_image_text(f'datasets_torchvision/embeddings/{name}.pkl',
+            result = evaluate_image_text(f'embeddings/{name}.pkl',
                                          model.logit_scale, mode=mode)
 
         results[names[i]] = result.values()

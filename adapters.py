@@ -220,7 +220,7 @@ class ContrastiveResidualAdapter(nn.Module):
 if __name__ == '__main__':
     adapter = SigAdapter(768, 0.3, torch.ones([])*-10, torch.ones([])*4, True, ).to(device)
     dataset = 'coco_openCLIP'
-    val_dataset = COCODataset(f'datasets_torchvision/embeddings/{dataset}_val.pkl')
+    val_dataset = COCODataset(f'embeddings/{dataset}_val.pkl')
     val_loader, val_indices = val_dataset.get_loader(shuffle=False, batch_size=20)
     for batch in val_loader:
         adapter.forward(batch)

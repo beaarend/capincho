@@ -1,15 +1,13 @@
+import argparse
 import torch
-import torchvision.datasets as dset
 import os
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-import torchvision.transforms as transforms
-from PIL import Image
+from pycocotools.coco import COCO
 import pandas as pd
-import open_clip
-from torch.utils.data import DataLoader
+from PIL import Image
 from tqdm import tqdm
 import pickle
 import foundation_models
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 device = torch.device("cuda") if torch.cuda.is_available() else "cpu"
 
 
@@ -39,50 +37,38 @@ def extract_features_geo(model, dataset='dataset/geoVQA.xlsx'):
         pickle.dump(output, f)
 
 
-def extract_features_torchvision(model, data, save_path):
-    output = {'image_features': [], 'labels': [], }
-    for image, label in tqdm(data):
-        output['labels'].append(label)
-        image = model.vision_preprocess(image).unsqueeze(0).to(device)
-        image_feature = model.backbone.encode_image(image)
-        features = image_feature.detach().cpu()
-        output['image_features'].append(features)
-
-    with open(save_path, 'wb') as f:
-        pickle.dump(output, f)
-
-
-def extract_features_coco(model, data, save_path):
-    output = {'image_features': [], 'text_features': [], }
-    for image, captions in tqdm(data):
-        image = model.vision_preprocess(image).unsqueeze(0).to(device)
-        # print(image.shape, )
-        image_features = model.backbone.encode_image(image)
-        image_features = image_features.detach().cpu()
-        output['image_features'].append(image_features)
-
-        text_features = model.language_embedding(captions)
-        text_features = text_features.detach().cpu()
-        output['text_features'].append(text_features)
-
-    with open(save_path, 'wb') as f:
-        pickle.dump(output, f)
-
-
 if __name__ == '__main__':
-    # print(open_clip.list_pretrained())
-    model = foundation_models.OpenCoCa(device)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--split', choices=['train', 'val'], default='train', help='split to use')
+    parser.add_argument('--model', choices=['openclip', 'clip', 'coca'], default='openclip', help='model to use')
+    parser.add_argument('--save_path', type=str, default='embeddings/coco_train.pkl')
+    args = parser.parse_args()
+
+    model_dict = {'coca': foundation_models.OpenCoCa,
+                  'clip': foundation_models.CLIP,
+                  'openclip': foundation_models.OpenCLIP}
+    model = model_dict[args.model](device)
     model.load_model()
 
-    for split in ['val', 'train']:
-        # data = dset.StanfordCars(root='datasets_torchvision/stanford_cars', split=split)
-        # data = dset.FGVCAircraft(root='datasets_torchvision/fgvc_aircraft/', split=split, annotation_level='variant')
-        # data = dset.Flowers102(root='datasets_torchvision/flowers102', split=split)
+    coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_{args.split}2017.json')
+    ids = coco.getImgIds()
+    imgs = coco.loadImgs(ids)
 
-        data = dset.CocoCaptions(root=f'datasets_torchvision/coco_2017/{split}2017',
-                                 annFile=f'datasets_torchvision/coco_2017/annotations/captions_{split}2017.json', )
+    data = {'image_name': [], 'image_id': [], 'image_embeddings': [], 'texts_embeddings': []}
+    for i, image in enumerate(tqdm(imgs)):
+        data['image_name'].append(image['file_name'])
+        data['image_id'].append(ids[i])
+        img_embeds = model.visual_embedding('datasets_torchvision/coco_2017/{}2017/{}'.format(args.split,
+                                                                                              image['file_name']))
+        data['image_embeddings'].append(img_embeds.detach().cpu())
 
-        extract_features_coco(model, data, f'datasets_torchvision/embeddings/coco_COCA'
-                                           f'_{split}.pkl')
+        ann = coco.loadAnns(coco.getAnnIds(ids[i]))
+        texts = [e['caption'] for e in ann]
+        text_embeds = model.language_embedding(texts)
+        data['texts_embeddings'].append(text_embeds.detach().cpu())
+
+    print(data)
+    with open(args.save_path, 'wb') as f:
+        pickle.dump(data, f)
 
 

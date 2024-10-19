@@ -104,7 +104,7 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
     if not full_finetune:
         decoder.lora_model(r, alpha, dropout)
 
-    dataset = CaptioningDataset(f'datasets_torchvision/embeddings/{filename}.pkl', text_only)
+    dataset = CaptioningDataset(f'embeddings/{filename}.pkl', text_only)
     optim = AdamW(decoder.parameters(), lr=lr)
     loader = dataset.get_loader(shuffle=False, batch_size=batch_size)
     scheduler = get_linear_schedule_with_warmup(optim, num_warmup_steps=200, num_training_steps=epochs * len(loader))

@@ -38,8 +38,8 @@ def adapt_features(model,
 
 
 def run_training(identifier, batch_size, dataset, model, initial_alpha, initial_bias, epochs):
-    train_dataset = COCODataset(f'datasets_torchvision/embeddings/{dataset}_train.pkl')
-    val_dataset = COCODataset(f'datasets_torchvision/embeddings/{dataset}_val.pkl')
+    train_dataset = COCODataset(f'embeddings/{dataset}_train.pkl')
+    val_dataset = COCODataset(f'embeddings/{dataset}_val.pkl')
     train_loader, train_indices = train_dataset.get_loader(shuffle=False, batch_size=batch_size)
     val_loader, val_indices = val_dataset.get_loader(shuffle=False, batch_size=batch_size)
     es = EarlyStopping(patience=200, minimal_improvement=0.01, objective='minimize', save_option='last')
@@ -86,6 +86,6 @@ if __name__ == '__main__':
             #              alpha, bias, 200)
             adapt_features(model,
                            checkpoint_path=f'checkpoints/contrastive/OpenCLIP_residual_adapter_0.3.pt',
-                           save_path=f'datasets_torchvision/embeddings/coco_contrastive_train.pkl',
-                           dataset_path=f'datasets_torchvision/embeddings/coco_openCLIP_train.pkl')
+                           save_path=f'embeddings/coco_contrastive_train.pkl',
+                           dataset_path=f'embeddings/coco_openCLIP_train.pkl')
 

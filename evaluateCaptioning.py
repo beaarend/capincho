@@ -15,7 +15,7 @@ from pycocoevalcap.eval import COCOEvalCap
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "")
     parser = argparse.ArgumentParser()
-    parser.add_argument('--experiment', type=str, default='experiments/coco_opt-350m_openclip_text-only.json',
+    parser.add_argument('--experiment', type=str, default='experiments/opt-350m-coco.json',
                         help='experiment path')
     parser.add_argument('--embeddings', type=str, default='coco_openCLIP_val')
     parser.add_argument('--qualitative', action='store_true', help='run qualitative evaluation')
@@ -41,6 +41,8 @@ if __name__ == '__main__':
 
     print('\n Evaluating captioning \n')
     if args.qualitative:
+        ann = COCO('datasets_torchvision/coco_2017/annotations/captions_val2017.json')
+        ids = ann.getImgIds()
         for i in [random.randint(0, len(coco)) for i in range(10)]:
             generated = decoder.caption(embeddings[i][0].to(device, dtype=precision), max_tokens=20, )
             text = 'GT: {}\n generated: {}'.format(coco[i][1][0], generated[0])
@@ -54,7 +56,7 @@ if __name__ == '__main__':
             dst = Image.new('RGB', (w, h + 60), (255, 255, 255))
             dst.paste(image, (0, 0))
             dst.paste(text_board, (0, h))
-            dst.save('plots/caption/captions_{}.png'.format(i))
+            dst.save('plots/caption/captions_{}.png'.format(ids[i]))
     else:
         ann = COCO('datasets_torchvision/coco_2017/annotations/captions_val2017.json')
         name = os.path.basename(args.experiment)

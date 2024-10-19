@@ -61,7 +61,7 @@ class CaptioningDataset(Dataset):
 
 
 if __name__ == '__main__':
-    dataset = CaptioningDataset(f'datasets_torchvision/embeddings/coco_contrastive_train.pkl', text_only=True)
+    dataset = CaptioningDataset(f'embeddings/coco_contrastive_train.pkl', text_only=True)
     loader = dataset.get_loader()
     # for i in range(100):
     #     for batch in loader:
