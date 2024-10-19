@@ -18,9 +18,10 @@ def run_training(identifier, batch_size, dataset, model, epochs, lr, patience, d
     train_loader, train_indices = train_dataset.get_loader(shuffle=False, batch_size=batch_size)
     val_loader, val_indices = val_dataset.get_loader(shuffle=False, batch_size=batch_size)
     save_option = 'best' if restore_best else 'last'
-    es = None
-    if patience >= 0:
-        es = EarlyStopping(patience=patience, minimal_improvement=delta, objective='minimize', save_option=save_option)
+    if patience < 0:
+        patience = epochs
+
+    es = EarlyStopping(patience=patience, minimal_improvement=delta, objective='minimize', save_option=save_option)
     training_losses = []
     validation_losses = []
 
@@ -41,10 +42,9 @@ def run_training(identifier, batch_size, dataset, model, epochs, lr, patience, d
                       'optimizer_state_dict': optim.state_dict(),
                       'loss': training_losses[-1]
                       }
-        if es is not None:
-            es.update(validation_loss, model_dict)
-            if es.stop:
-                break
+        es.update(validation_loss, model_dict)
+        if es.stop:
+            break
 
     torch.save(es.model_to_save(), f'checkpoints/contrastive/{identifier}.pt')
     plot_curves(training_losses, validation_losses, identifier, 'loss')

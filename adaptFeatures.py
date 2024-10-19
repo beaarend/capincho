@@ -45,7 +45,7 @@ def adapt_features(model,
 
 if __name__ == '__main__':
     parse = argparse.ArgumentParser()
-    parse.add_argument('')
+    parse.add_argument('--experiment', type=str, default='experiments/coco_contrastive.json')
     args = parse.parse_args()
 
     adapt_features(model,
