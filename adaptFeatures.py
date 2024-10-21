@@ -1,7 +1,7 @@
 import argparse
 import os
 import pickle
-import time
+import json
 import torch
 from adapters import ContrastiveResidualAdapter, DynamicContrastiveResidualAdapter, SigAdapter
 from tqdm import tqdm
@@ -28,28 +28,42 @@ def adapt_features(model,
     model.to(device)
 
     dataset = COCODataset(embeddings_path)
+    # single batch
     loader, indices = dataset.get_loader(batch_size=len(dataset), shuffle=False)
-
     for batch in loader:
         images = model.image_projection(batch['image_embeddings']).cpu()
         texts = model.text_projection(batch['texts_embeddings']).cpu()
-        results = {'image_embeddings': images,
-                   'texts_embeddings': texts,
-                   'image_id': batch['image_id'],
-                   'image_name': batch['image_name']}
+        data = {'image_embeddings': images,
+                'texts_embeddings': texts,
+                'image_id': batch['image_id'],
+                'image_name': batch['image_name']}
 
         with open(save_path, 'wb') as f:
-            pickle.dump(results, f)
-    print('done!')
+            pickle.dump(data, f)
 
 
 if __name__ == '__main__':
-    parse = argparse.ArgumentParser()
-    parse.add_argument('--experiment', type=str, default='experiments/coco_contrastive.json')
-    args = parse.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--experiment', '-n', type=str, required=True, help='experiment name to load')
+    parser.add_argument('--output', '-o', type=str, required=True, help='output file path')
+    parser.add_argument('--embeddings', '-e', type=str, required=True, help='embeddings file path')
+    args = parser.parse_args()
+
+    with open(args.experiment, 'r') as f:
+        config = json.load(f)
+
+    logit_scale = config['logit_scale'] * torch.ones([])
+
+    if config['adapter'] == 'contrastive':
+        model = ContrastiveResidualAdapter(config['embedding_dim'], config['alpha'], logit_scale,
+                                           config['learnable_alpha'])
+
+    else:
+        model = SigAdapter(config['embedding_dim'], config['alpha'], config['bias'],logit_scale,
+                           config['multiple_positives'], config['use_bias'], )
 
     adapt_features(model,
-                   checkpoint_path=f'checkpoints/contrastive/OpenCLIP_residual_adapter_0.3.pt',
-                   save_path=f'embeddings/coco_contrastive_val.pkl',
-                   dataset_path=f'embeddings/coco_openclip_val.pkl')
+                   checkpoint_path=config['checkpoint_path'],
+                   save_path=args.output,
+                   embeddings_path=args.embeddings)
 

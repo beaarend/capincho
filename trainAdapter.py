@@ -6,7 +6,6 @@ from adapters import ContrastiveResidualAdapter, SigAdapter
 from tqdm import tqdm
 from torch.optim import Adam
 import foundation_models
-from util import plot_curves
 from embeddingsLoader import COCODataset
 from earlyStopping import EarlyStopping
 device = torch.device("cuda" if torch.cuda.is_available() else "")
@@ -17,7 +16,7 @@ def run_training(identifier, batch_size, dataset, model, epochs, lr, patience, d
     val_dataset = COCODataset(f'embeddings/{dataset}_val.pkl')
     train_loader, train_indices = train_dataset.get_loader(shuffle=False, batch_size=batch_size)
     val_loader, val_indices = val_dataset.get_loader(shuffle=False, batch_size=batch_size)
-    save_option = 'best' if restore_best else 'last'
+    save_option = "best" if restore_best else "last"
     if patience < 0:
         patience = epochs
 
@@ -47,7 +46,6 @@ def run_training(identifier, batch_size, dataset, model, epochs, lr, patience, d
             break
 
     torch.save(es.model_to_save(), f'checkpoints/contrastive/{identifier}.pt')
-    plot_curves(training_losses, validation_losses, identifier, 'loss')
 
 
 if __name__ == '__main__':
@@ -66,7 +64,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=400, help='batch size')
     parser.add_argument('--embedding_dim', type=int, default=768, help='embedding dimension')
     parser.add_argument('--learnable_alpha', action='store_true', help='learnable alpha', default=False)
-    parser.add_argument('--output', type=str, default='coco_openclip_contrastive', help='experiment name')
+    parser.add_argument('--output', type=str, default='coco_openclip_contrastive', help='experiment name no extension')
     parser.add_argument('--patience', type=int, default=-1, help='early stopping patience, '
                                                                  'negative value means no early stopping')
     parser.add_argument('--lr', type=float, default=0.00001, help='learning rate')
@@ -96,6 +94,7 @@ if __name__ == '__main__':
                  args.delta, args.best)
 
     result_dict = args.__dict__
-    result_dict['checkpoint_path'] = f'checkpoints/caption/{args.output}.pt'
+    result_dict['checkpoint_path'] = f'checkpoints/contrastive/{args.output}.pt'
+    result_dict['logit_scale'] = model.logit_scale.detach().cpu().item()
     with open(f'experiments/{args.output}.json', 'w') as f:
         json.dump(result_dict, f, indent=2)
