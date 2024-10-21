@@ -3,14 +3,9 @@ import os
 import pickle
 import json
 import torch
-from adapters import ContrastiveResidualAdapter, DynamicContrastiveResidualAdapter, SigAdapter
-from tqdm import tqdm
-from torch.optim import Adam
-import foundation_models
-from util import plot_curves
-from geoVQALoader import GeoVQADataset
+from adapters import ContrastiveResidualAdapter, SigAdapter
 from embeddingsLoader import COCODataset
-from earlyStopping import EarlyStopping
+
 device = torch.device("cuda" if torch.cuda.is_available() else "")
 
 
@@ -35,9 +30,10 @@ def adapt_features(model,
         texts = model.text_projection(batch['texts_embeddings']).cpu()
         data = {'image_embeddings': images,
                 'texts_embeddings': texts,
-                'image_id': batch['image_id'],
-                'image_name': batch['image_name']}
+                'image_id': dataset[:]['image_id'],
+                'image_name': dataset[:]['image_name']}
 
+        # print(data['image_id'])
         with open(save_path, 'wb') as f:
             pickle.dump(data, f)
 

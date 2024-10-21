@@ -36,3 +36,11 @@ class COCODataset(Dataset):
         return loader, indices
 
 
+if __name__ == '__main__':
+    dataset = COCODataset('embeddings/coco_openclip_val.pkl')
+    print(dataset[0]['image_embeddings'].shape, dataset[0].keys(), len(dataset[0]['image_embeddings']), len(dataset))
+    print(dataset[:]['image_id'])
+
+    dataset = COCODataset('embeddings/coco_openclip_adapter_val.pkl')
+    print(dataset[0]['image_embeddings'].shape, dataset[0].keys(), len(dataset[0]['image_embeddings']), len(dataset))
+    print(dataset[:]['image_id'])
