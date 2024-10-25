@@ -9,9 +9,11 @@ from torch.utils.data import Dataset
 class COCODataset(Dataset):
     def __init__(self, path, n_captions=5):
         assert os.path.exists(path), '{} does not exist'.format(path)
+        self.captions = []
         with open(path, 'rb') as f:
             data = pickle.load(f)
-            self.captions = data['texts_embeddings']
+            for i in data['texts_embeddings']:
+                self.captions.append(i[:n_captions])
             self.images = data['image_embeddings']
             self.image_id = data['image_id']
             self.image_name = data['image_name']
@@ -24,7 +26,7 @@ class COCODataset(Dataset):
         payload = {'image_id': self.image_id[index],
                    'image_name': self.image_name[index],
                    'image_embeddings': self.images[index],
-                   'texts_embeddings': self.captions[index][:5]}
+                   'texts_embeddings': self.captions[index]}
         return payload
 
     def get_loader(self, shuffle=False, batch_size=400):
@@ -38,9 +40,9 @@ class COCODataset(Dataset):
 
 if __name__ == '__main__':
     dataset = COCODataset('embeddings/coco_openclip_val.pkl')
-    print(dataset[0]['image_embeddings'].shape, dataset[0].keys(), len(dataset[0]['image_embeddings']), len(dataset))
-    print(dataset[:]['image_id'])
+    print(dataset[0]['image_embeddings'].shape, dataset[0].keys(), len(dataset[:]['image_embeddings']),
+          len(dataset[:]['texts_embeddings']))
 
-    dataset = COCODataset('embeddings/coco_openclip_adapter_val.pkl')
-    print(dataset[0]['image_embeddings'].shape, dataset[0].keys(), len(dataset[0]['image_embeddings']), len(dataset))
-    print(dataset[:]['image_id'])
+    loader, indices = dataset.get_loader()
+    for batch in loader:
+        print(batch['image_embeddings'].shape, batch['texts_embeddings'].shape)

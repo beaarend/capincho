@@ -47,14 +47,15 @@ if __name__ == '__main__':
     model_dict = {'coca': foundation_models.OpenCoCa,
                   'clip': foundation_models.CLIP,
                   'openclip': foundation_models.OpenCLIP}
+
     model = model_dict[args.model](device)
     model.load_model()
-
+    model.backbone.eval()
     coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_{args.split}2017.json')
     ids = coco.getImgIds()
     imgs = coco.loadImgs(ids)
 
-    data = {'image_name': [], 'image_id': [], 'image_embeddings': [], 'texts_embeddings': []}
+    data = {'image_name': [], 'image_id': [], 'image_embeddings': [], 'texts_embeddings': [], 'captions': []}
     for i, image in enumerate(tqdm(imgs)):
         data['image_name'].append(image['file_name'])
         data['image_id'].append(ids[i])
@@ -66,6 +67,7 @@ if __name__ == '__main__':
         texts = [e['caption'] for e in ann]
         text_embeds = model.language_embedding(texts)
         data['texts_embeddings'].append(text_embeds.detach().cpu())
+        data['captions'].append(texts)
 
     with open(args.save_path, 'wb') as f:
         pickle.dump(data, f)

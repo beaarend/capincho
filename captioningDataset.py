@@ -1,58 +1,45 @@
+import pickle
 import random
 import numpy
 import torchvision.datasets as dset
 from torch.utils.data import Dataset
-from embeddingsLoader import COCODataset
+from embeddingsDataset import COCODataset
 import pandas
 import torch
 
 
 class CaptioningDataset(Dataset):
     def __init__(self, embeddings_path, text_only=True):
-        if text_only:
-            df = pandas.read_csv('datasets_torchvision/coco_2017/texts.csv')
-            self.texts = df['texts'].values
-        else:
-            assert False, 'not implemented yet, use text_only=True'
-            # data = dset.CocoCaptions(root=f'datasets_torchvision/coco_2017/train2017',
-            #                          annFile=f'datasets_torchvision/coco_2017/annotations/captions_train2017.json', )
-            # self.texts = []
-            # for img, texts in data:
-            #     self.texts.append(texts[:5])
-            # self.texts = numpy.array(self.texts)
-
-        self.embeddings = None
         self.text_only = text_only
-        embeddings = COCODataset(embeddings_path)
-        loader, indices = embeddings.get_loader(shuffle=False)
+        with open(embeddings_path, 'rb') as f:
+            embeddings = pickle.load(f)
 
-        for batch in loader:
-            if text_only:
-                embed = batch[1]
-                embed = torch.reshape(embed, (embed.shape[0] * embed.shape[1], embed.shape[2]))
-                embed = embed.detach()
-            else:
-                embed = batch[0].detach()
+        self.embeddings = []
+        if text_only:
+            self.captions = []
+            for e in embeddings['captions']:
+                self.captions += e[:5]
 
-            if self.embeddings is None:
-                self.embeddings = embed
-            else:
-                self.embeddings = numpy.concatenate((self.embeddings, embed))
-        print(self.embeddings.shape, self.texts.shape)
+            for e in embeddings['texts_embeddings']:
+                self.embeddings += e[:5, :]
+
+        else:
+            self.embeddings = embeddings['image_embeddings']
+            self.captions = embeddings['captions']
+        print(len(self.embeddings), len(self.captions))
 
     def __len__(self):
         return len(self.embeddings)
 
     def __getitem__(self, index):
         if self.text_only:
-            return {'embeddings': torch.tensor(self.embeddings[index]), 'captions': self.texts[index]}
+            return {'embeddings': self.embeddings[index].unsqueeze(0), 'captions': self.captions[index]}
         else:
-            text = self.texts[index]
-            i = random.randint(0, 4)
-            return {'embeddings': torch.tensor(self.embeddings[index]), 'captions': text[i]}
+            r = random.randint(0, 4)
+            return {'embeddings': self.embeddings[index], 'captions': self.captions[index][r]}
 
-    def get_loader(self, shuffle=False, batch_size=400):
-        indices = numpy.arange(len(self.texts))
+    def get_loader(self, shuffle=False, batch_size=32):
+        indices = numpy.arange(len(self.captions))
         if shuffle:
             numpy.random.shuffle(indices)
         sampler = torch.utils.data.SequentialSampler(indices)
@@ -61,11 +48,17 @@ class CaptioningDataset(Dataset):
 
 
 if __name__ == '__main__':
-    dataset = CaptioningDataset(f'embeddings/coco_contrastive_train.pkl', text_only=True)
+    dataset = CaptioningDataset(f'embeddings/coco_openclip_adapter_val.pkl', text_only=True)
+    # print(len(dataset))
+    # print(len(dataset[:]['embeddings']))
+    # print(dataset[:]['captions'])
     loader = dataset.get_loader()
-    # for i in range(100):
-    #     for batch in loader:
-    #         print(len(batch['embeddings']), len(batch['captions']))
+    # print(dataset[:]['captions'])
+    for batch in loader:
+        # print(len(batch['captions']))
+        print(batch['embeddings'].shape)
+
+
 
 
 

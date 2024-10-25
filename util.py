@@ -14,7 +14,7 @@ def plot_curves(training, validation, output_name, type):
 
     plt.title(f'{type} curves {output_name}')
     plt.legend()
-    plt.savefig(f'plots/experiment training/{output_name}.png')
+    plt.savefig(f'plots/experiment training/{output_name}')
     plt.clf()
 
 

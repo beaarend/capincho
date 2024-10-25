@@ -1,7 +1,7 @@
 import clip
 import numpy as np
 import torch
-from embeddingsLoader import COCODataset
+from embeddingsDataset import COCODataset
 from tqdm import tqdm
 from adapters import ContrastiveResidualAdapter, SigAdapter, DynamicContrastiveResidualAdapter
 import matplotlib.pyplot as plt
@@ -15,8 +15,8 @@ def evaluate_image_text(path, temperature, n=5, mode='one'):
     loader, indices = dataset.get_loader(batch_size=5000, shuffle=False)
     result = []
     for batch in loader:
-        images = batch[0].to(device).squeeze()
-        captions = batch[1].to(device).flatten(start_dim=0, end_dim=1)
+        images = batch['image_embeddings'].to(device).squeeze()
+        captions = batch['texts_embeddings'].to(device).flatten(start_dim=0, end_dim=1)
         images = images / images.norm(dim=-1, keepdim=True)
         captions = captions / captions.norm(dim=-1, keepdim=True)
         sim = (images @ captions.T) * temperature.exp()
@@ -52,12 +52,9 @@ if __name__ == '__main__':
     # result = evaluate_image_text('datasets_torchvision/embeddings/coco_ViTL_val.pkl',
     #                              model.logit_scale, mode=mode)
     # results['CLIP zero shot'] = result.values()
-    paths = ['coco_COCA_val',
-             'coco_COCAft_val',
-             'COCA_residual_adapter_0.3',]
-    names = ['COCA ',
-             'COCA finetune',
-             'COCA adapter',]
+    paths = ['coco_openclip_adapter_val',
+             'coco_openclip_val.pkl',]
+    names = ['adapter', 'vanilla']
 
     for i, name in enumerate(paths):
         if 'adapter_' in name:
@@ -67,12 +64,12 @@ if __name__ == '__main__':
             else:
                 adapter = ContrastiveResidualAdapter(768, 0.2, model.logit_scale, False)
 
-            checkpoint = torch.load(f'checkpoints/contrastive/{name}.pt')
+            checkpoint = torch.load(f'checkpoints/contrastive/openclip-contrastive-coco.pt')
             adapter.load_state_dict(checkpoint['model_state_dict'])
-            result = evaluate_image_text(f'embeddings/{name}.pkl',
+            result = evaluate_image_text(f'embeddings/coco_openclip_adapter_val.pkl',
                                          adapter.logit_scale, mode=mode)
         else:
-            result = evaluate_image_text(f'embeddings/{name}.pkl',
+            result = evaluate_image_text(f'embeddings/coco_openclip_val.pkl',
                                          model.logit_scale, mode=mode)
 
         results[names[i]] = result.values()

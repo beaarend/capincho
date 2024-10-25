@@ -1,13 +1,15 @@
 import argparse
 import json
+import os.path
 import time
 import torch
 from adapters import ContrastiveResidualAdapter, SigAdapter
 from tqdm import tqdm
 from torch.optim import Adam
 import foundation_models
-from embeddingsLoader import COCODataset
+from embeddingsDataset import COCODataset
 from earlyStopping import EarlyStopping
+from util import plot_curves
 device = torch.device("cuda" if torch.cuda.is_available() else "")
 
 
@@ -46,6 +48,8 @@ def run_training(identifier, batch_size, dataset, model, epochs, lr, patience, d
             break
 
     torch.save(es.model_to_save(), f'checkpoints/contrastive/{identifier}.pt')
+    plot_curves(training_losses, validation_losses, f'{identifier}.png',
+                'contrastive adapter')
 
 
 if __name__ == '__main__':

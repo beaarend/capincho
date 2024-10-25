@@ -4,7 +4,7 @@ import pickle
 import json
 import torch
 from adapters import ContrastiveResidualAdapter, SigAdapter
-from embeddingsLoader import COCODataset
+from embeddingsDataset import COCODataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "")
 
@@ -26,8 +26,9 @@ def adapt_features(model,
     # single batch
     loader, indices = dataset.get_loader(batch_size=len(dataset), shuffle=False)
     for batch in loader:
-        images = model.image_projection(batch['image_embeddings']).cpu()
-        texts = model.text_projection(batch['texts_embeddings']).cpu()
+        images = model.image_projection(batch['image_embeddings']).detach().cpu()
+        texts = model.text_projection(batch['texts_embeddings']).detach().cpu()
+
         data = {'image_embeddings': images,
                 'texts_embeddings': texts,
                 'image_id': dataset[:]['image_id'],

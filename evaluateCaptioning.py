@@ -1,7 +1,7 @@
 import json
 import os.path
 import random
-from embeddingsLoader import COCODataset
+from embeddingsDataset import COCODataset
 import torchvision.datasets as dset
 from decoder import OPT
 import torch
@@ -40,7 +40,10 @@ if __name__ == '__main__':
     coco = COCO('datasets_torchvision/coco_2017/annotations/captions_val2017.json')
     if args.qualitative:
         for i in [random.randint(0, len(embeddings)) for i in range(10)]:
-            generated = decoder.caption(embeddings[i]['image_embeddings'][0].to(device, dtype=precision), max_tokens=20, )
+            print(i)
+            input_emb = embeddings[i]['image_embeddings'][0].to(device, dtype=precision)
+            print(input_emb.sum())
+            generated = decoder.caption(input_emb, max_tokens=20, )
             ann_id = coco.getAnnIds(embeddings[i]['image_id'])
             ann = coco.loadAnns(ann_id)
             text = 'GT: {}\n generated: {}'.format(ann[0]['caption'], generated[0])
@@ -63,6 +66,7 @@ if __name__ == '__main__':
             data = embeddings[:]
             captions = [decoder.caption(torch.tensor(e, dtype=precision, device=device).squeeze(0))[0] for e in tqdm(data['image_embeddings'], total=len(data['image_embeddings']))]
             results = []
+            print(captions)
             for i in range(len(captions)):
                 results.append({'image_id': embeddings[i]['image_id'], 'caption': captions[i]})
 

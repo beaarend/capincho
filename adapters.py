@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from projectionHeads import ResidualLearnableHead, ResidualDynamicHead
 import numpy as np
-from embeddingsLoader import COCODataset
+from embeddingsDataset import COCODataset
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
@@ -20,7 +20,7 @@ class ContrastiveResidualAdapter(nn.Module):
         text_features = batch['texts_embeddings'].to(device, torch.float32)
         c = random.randint(0, text_features.shape[1]-1)
         text_features = text_features[:, c, :]
-        # print(text_features.shape, image_features.shape, c)
+        # print(text_features.shape, image_features.shape)
 
         # resized features logits
         image_features = self.imageAdapter.forward(image_features)
@@ -102,6 +102,7 @@ class SigAdapter(nn.Module):
 
         image_features = self.imageAdapter.forward(image_features)
         text_features = self.textAdapter.forward(text_features)
+        # print(image_features.shape, text_features.shape)
         image_features = image_features / image_features.norm(dim=1, keepdim=True)
         text_features = text_features / text_features.norm(dim=1, keepdim=True)
         return ((image_features @ text_features.T) * (self.logit_scale.exp()) +
