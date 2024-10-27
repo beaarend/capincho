@@ -32,7 +32,8 @@ def adapt_features(model,
         data = {'image_embeddings': images,
                 'texts_embeddings': texts,
                 'image_id': dataset[:]['image_id'],
-                'image_name': dataset[:]['image_name']}
+                'image_name': dataset[:]['image_name'],}
+
 
         # print(data['image_id'])
         with open(save_path, 'wb') as f:

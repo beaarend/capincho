@@ -2,39 +2,11 @@ import argparse
 import torch
 import os
 from pycocotools.coco import COCO
-import pandas as pd
-from PIL import Image
 from tqdm import tqdm
 import pickle
 import foundation_models
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 device = torch.device("cuda") if torch.cuda.is_available() else "cpu"
-
-
-def extract_features_geo(model, dataset='dataset/geoVQA.xlsx'):
-    output = {'image_path': [], 'text': [], 'image_features': [], 'text_features': [], 'text_length': [], 'width': [],
-              'height': []}
-    df = pd.read_excel(dataset)
-
-    for i, row in tqdm(df.iterrows(), total=len(df)):
-        path = row['image']
-        image = Image.open(path)
-        width, height = image.size
-        caption = row['gt_text']
-        with torch.no_grad():
-            img_features = model.visual_embedding(row['image'])
-            text_features = model.language_embedding(caption)
-
-        output['image_features'].append(img_features.cpu())
-        output['text_features'].append(text_features.cpu())
-        output['text_length'].append(len(caption))
-        output['width'].append(width)
-        output['height'].append(height)
-        output['image_path'].append(row['image'])
-        output['text'].append(caption)
-
-    with open('dataset/embeddings/clip_embeddings.pkl', 'wb') as f:
-        pickle.dump(output, f)
 
 
 if __name__ == '__main__':
@@ -55,7 +27,7 @@ if __name__ == '__main__':
     ids = coco.getImgIds()
     imgs = coco.loadImgs(ids)
 
-    data = {'image_name': [], 'image_id': [], 'image_embeddings': [], 'texts_embeddings': [], 'captions': []}
+    data = {'image_name': [], 'image_id': [], 'image_embeddings': [], 'texts_embeddings': [], }
     for i, image in enumerate(tqdm(imgs)):
         data['image_name'].append(image['file_name'])
         data['image_id'].append(ids[i])
@@ -65,9 +37,8 @@ if __name__ == '__main__':
 
         ann = coco.loadAnns(coco.getAnnIds(ids[i]))
         texts = [e['caption'] for e in ann]
-        text_embeds = model.language_embedding(texts)
+        text_embeds = model.language_embedding(texts[:5])
         data['texts_embeddings'].append(text_embeds.detach().cpu())
-        data['captions'].append(texts)
 
     with open(args.save_path, 'wb') as f:
         pickle.dump(data, f)

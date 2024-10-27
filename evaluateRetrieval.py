@@ -64,7 +64,7 @@ if __name__ == '__main__':
             else:
                 adapter = ContrastiveResidualAdapter(768, 0.2, model.logit_scale, False)
 
-            checkpoint = torch.load(f'checkpoints/contrastive/openclip-contrastive-coco.pt')
+            checkpoint = torch.load(f'checkpoints/contrastive/coco_openclip_adapter.pt')
             adapter.load_state_dict(checkpoint['model_state_dict'])
             result = evaluate_image_text(f'embeddings/coco_openclip_adapter_val.pkl',
                                          adapter.logit_scale, mode=mode)

@@ -1,10 +1,8 @@
 import pickle
 import random
 import numpy
-import torchvision.datasets as dset
 from torch.utils.data import Dataset
-from embeddingsDataset import COCODataset
-import pandas
+from pycocotools.coco import COCO
 import torch
 
 
@@ -13,19 +11,31 @@ class CaptioningDataset(Dataset):
         self.text_only = text_only
         with open(embeddings_path, 'rb') as f:
             embeddings = pickle.load(f)
-
         self.embeddings = []
-        if text_only:
-            self.captions = []
-            for e in embeddings['captions']:
-                self.captions += e[:5]
+        self.captions = []
 
-            for e in embeddings['texts_embeddings']:
-                self.embeddings += e[:5, :]
+        # captions
+        if 'val' in embeddings_path:
+            coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_val2017.json')
+        else:
+            coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_train2017.json')
+
+        for embed in embeddings['image_id']:
+            ann = coco.loadAnns(coco.getAnnIds(embed))
+            texts = [e['caption'] for e in ann]
+            if text_only:
+                self.captions += texts[:5]
+            else:
+                self.captions.append(texts[:5])
+
+        # embeddings
+        if text_only:
+            n, c, d = embeddings['texts_embeddings'].shape
+            self.embeddings = embeddings['texts_embeddings'].view(n*c, d)
 
         else:
             self.embeddings = embeddings['image_embeddings']
-            self.captions = embeddings['captions']
+
         print(len(self.embeddings), len(self.captions))
 
     def __len__(self):
@@ -48,15 +58,15 @@ class CaptioningDataset(Dataset):
 
 
 if __name__ == '__main__':
-    dataset = CaptioningDataset(f'embeddings/coco_openclip_adapter_val.pkl', text_only=True)
+    dataset = CaptioningDataset(f'embeddings/coco_openclip_adapter_train.pkl', text_only=True)
     # print(len(dataset))
     # print(len(dataset[:]['embeddings']))
     # print(dataset[:]['captions'])
-    loader = dataset.get_loader()
+    # loader = dataset.get_loader()
     # print(dataset[:]['captions'])
-    for batch in loader:
+    # for batch in loader:
         # print(len(batch['captions']))
-        print(batch['embeddings'].shape)
+    #     print(batch['embeddings'].shape, len(batch['captions']))
 
 
 
