@@ -1,6 +1,6 @@
 import pandas as pd
 from torch.utils.data import Dataset
-from transformers import OPTForCausalLM, GPT2Tokenizer
+from transformers import GPT2Tokenizer
 
 
 class TextLoader(Dataset):
