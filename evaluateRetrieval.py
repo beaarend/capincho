@@ -46,7 +46,7 @@ def evaluate_image_text(path, temperature, n=5, mode='one'):
 if __name__ == '__main__':
     model, _ = clip.load('ViT-L/14')
     results = {}
-    mode = 'one'
+    mode = 'all'
     ratio = '1/5000' if mode == 'one' else '5/25000'
     title = f'COCO Retrieval with Open CLIP encoders, {ratio}'
     # result = evaluate_image_text('datasets_torchvision/embeddings/coco_ViTL_val.pkl',

@@ -3,3 +3,4 @@ torch~=2.4.1
 tqdm~=4.66.5
 pycocotools
 pandas
+open_clip_torch

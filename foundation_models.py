@@ -1,9 +1,9 @@
 import open_clip
 import torch
-from lavis.models import load_model_and_preprocess
 from PIL import Image
 from abc import ABC, abstractmethod
 import clip
+
 
 class Model(ABC):
     def __init__(self, device):
