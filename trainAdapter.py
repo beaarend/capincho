@@ -60,7 +60,7 @@ if __name__ == '__main__':
                         help='adapter type')
     parser.add_argument('--alpha', type=float, default=0.3, help='residual learning rate')
     parser.add_argument('--bias', type=float, default=-10., help='logit bias, sig adapter')
-    parser.add_argument('--embeddings_path', type=str, default='coco_openclip',
+    parser.add_argument('--embeddings', type=str, default='coco_openclip',
                         help='embeddings path root, val and train will be appended later')
     parser.add_argument('--use_bias', action='store_true', help='use logit bias in sig adapter', default=True)
     parser.add_argument('--multiple_positives', action='store_true',
@@ -94,7 +94,7 @@ if __name__ == '__main__':
         model = ContrastiveResidualAdapter(args.embedding_dim, args.alpha, logit_scale, args.learnable_alpha, )
 
     model.to(device)
-    run_training(args.output, args.batch_size, args.embeddings_path, model, args.epochs, args.lr, args.patience,
+    run_training(args.output, args.batch_size, args.embeddings, model, args.epochs, args.lr, args.patience,
                  args.delta, args.best)
 
     result_dict = args.__dict__
