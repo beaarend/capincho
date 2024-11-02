@@ -40,9 +40,7 @@ if __name__ == '__main__':
     coco = COCO('datasets_torchvision/coco_2017/annotations/captions_val2017.json')
     if args.qualitative:
         for i in [random.randint(0, len(embeddings)) for i in range(10)]:
-            print(i)
             input_emb = embeddings[i]['image_embeddings'][0].to(device, dtype=precision)
-            print(input_emb.sum())
             generated = decoder.caption(input_emb, max_tokens=20, )
             ann_id = coco.getAnnIds(embeddings[i]['image_id'])
             ann = coco.loadAnns(ann_id)
