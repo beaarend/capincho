@@ -1,8 +1,15 @@
 #!/bin/bash
-#SBATCH --job-name=my_python_job     # Job name
-#SBATCH --output=output_%j.log       # Output log file (%j will be replaced by the job ID)
-#SBATCH --error=error_%j.log         # Error log file (%j will be replaced by the job ID)
-#SBATCH --ntasks=1                   # Number of tasks (processes)
+#SBATCH --nodes=1 #Número de Nós
+#SBATCH --ntasks-per-node=24 #Número de tarefas por Nó
+#SBATCH --ntasks=24 #Número total de tarefas MPI
+#SBATCH --cpus-per-task=1 #Número de threads por tarefas
+#SBATCH -p gpu #Fila (partition) a ser utilizada
+#SBATCH -J text_features #Nome job
+#SBATCH --exclusive #Utilização exclusiva dos nós durante a execução do job
+#SBATCH --chdir=/u/fibz/capincho #path a partir do qual será executado o job
+#SBATCH --account=tornado #Conta do projeto
+#SBATCH --output=/logs/saida.out #arquivo onde será escrita a saída stdout da execução job
+#SBATCH --error=/logs/saida.err #arquivo onde será escrito os erros de execução job tderr
 
 # Access positional arguments
 PATH=$1
@@ -10,10 +17,11 @@ MODEL=$2
 OUTPUT=$3
 
 # Load any necessary modules (Python module, if needed)
-module load python/3.8                # Adjust the Python version as necessary
+module load python/3.8
+module load cuda/11.6
 
 # Install dependencies from requirements.txt
-pip install --upgrade pip             # Ensure pip is up-to-date
+pip install --upgrade pip
 pip install -r requirements.txt
 
 # Run the Python script
