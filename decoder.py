@@ -8,7 +8,7 @@ import math
 
 
 class OPT(nn.Module):
-    def __init__(self, model_name, device, precision=torch.float16, prefix_length=10, add_noise=True):
+    def __init__(self, model_name, device, precision=torch.float16, prefix_length=10, add_noise=True, variance=0.016):
         super(OPT, self).__init__()
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
@@ -17,6 +17,7 @@ class OPT(nn.Module):
 
         ).to(device)
         self.add_noise = add_noise
+        self.variance = variance
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
         self.device = device
         self.hidden_size = self._get_hidden_size()
@@ -76,8 +77,8 @@ class OPT(nn.Module):
         ids = self.tokenizer("prompt", return_tensors="pt").input_ids.to(self.device).squeeze(0)
         return self.model.get_input_embeddings()(ids).shape[1]
 
-    def noise_injection(self, x, variance=0.016, ):
-        return x + torch.randn(x.shape, device=self.device, dtype=self.fp) * math.sqrt(variance)
+    def noise_injection(self, x, ):
+        return x + torch.randn(x.shape, device=self.device, dtype=self.fp) * math.sqrt(self.variance)
 
     def lora_model(self, r, alpha, dropout):
         for param in self.model.parameters():

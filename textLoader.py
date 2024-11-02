@@ -1,8 +1,9 @@
 import pickle
 import pandas as pd
 from torch.utils.data import Dataset
-from transformers import GPT2Tokenizer
+import open_clip
 import argparse
+import clip
 
 
 class TextLoader(Dataset):
@@ -20,15 +21,18 @@ class TextLoader(Dataset):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--path', type=str, required=True, help='path to texts xlsx')
-    parser.add_argument('--model', type=str, required=True, help='hugginface model')
-    parser.add_argument('--output', type=str, required=True, help='output path')
+    parser.add_argument('--path', '-p', type=str, required=True, help='path to texts xlsx')
+    parser.add_argument('--output', '-o', type=str, required=True, help='output path')
+    parser.add_argument('--model', '-m', type=str, required=True, help='model name', choices=['openclip', 'clip'])
     args = parser.parse_args()
 
     data = pd.read_excel(args.path)
     texts = data['texts']
-    tokenizer = GPT2Tokenizer.from_pretrained(args.model)
-    tokens = tokenizer(texts, return_tensors='pt')
+    if args.model == 'openclip':
+        tokenizer = open_clip.get_tokenizer('ViT-L/14')
+        tokens = tokenizer(texts)
+    else:
+        tokens = clip.tokenize(texts)
 
     new_dict = {'texts': texts, 'tokens': tokens}
     with open(args.output, 'wb') as f:

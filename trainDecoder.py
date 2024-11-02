@@ -11,9 +11,9 @@ from decoder import OPT
 
 
 def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefix_len, fp, output_name, text_only,
-          full_finetune, schedule):
+          full_finetune, schedule, add_noise, variance):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    decoder = OPT(model_name, device, prefix_length=prefix_len, precision=fp, add_noise=text_only)
+    decoder = OPT(model_name, device, prefix_length=prefix_len, precision=fp, add_noise=add_noise, variance=variance)
     if not full_finetune:
         decoder.lora_model(r, alpha, dropout)
         print("Lora model")
@@ -72,11 +72,14 @@ if __name__ == '__main__':
     parser.add_argument('--text_only', action='store_true', help='train using text only')
     parser.add_argument('--full_finetune', action='store_true', help='fine tune entire model', default=False)
     parser.add_argument('--schedule', action='store_true', help='use linear scheduler', default=False)
+    parser.add_argument('--noise', action='store_true', help='add noise to embeddings', default=False)
+    parser.add_argument('--variance', type=float, help='variance for noise injection', default=0.016)
     args = parser.parse_args()
 
     precision = torch.float16 if args.fp == 'fp16' else torch.float32
     train(args.epochs, args.batch_size, args.lr, args.embeddings, args.rank, args.alpha, args.dropout,
-          args.model_name, args.prefix_len, precision, args.output, args.text_only, args.full_finetune, args.schedule)
+          args.model_name, args.prefix_len, precision, args.output, args.text_only, args.full_finetune, args.schedule,
+          args.noise, args.variance)
 
     result_dict = args.__dict__
     result_dict['checkpoint_path'] = f'checkpoints/caption/{args.output}.pt'

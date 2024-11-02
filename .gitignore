@@ -15,4 +15,5 @@ earlyStopping.py
 __pycache__/*
 plotResults.py
 embeddings/*
+descricoes.xlsx
 *.png
