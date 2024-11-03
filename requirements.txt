@@ -1,3 +1,4 @@
+clip @ git+https://github.com/openai/CLIP.git@dcba3cb2e2827b402d2701e7e1c7d9fed8a20ef1
 huggingface-hub==0.25.1
 matplotlib==3.7.5
 numpy==1.24.3
