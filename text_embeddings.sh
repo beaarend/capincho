@@ -8,8 +8,8 @@
 #SBATCH --exclusive #Utilização exclusiva dos nós durante a execução do job
 #SBATCH --chdir=/u/fibz/capincho #path a partir do qual será executado o job
 #SBATCH --account=tornado #Conta do projeto
-#SBATCH --output=/logs/saida.out #arquivo onde será escrita a saída stdout da execução job
-#SBATCH --error=/logs/saida.err #arquivo onde será escrito os erros de execução job tderr
+#SBATCH --output=/u/fibz/capincho/logs/saida.out #arquivo onde será escrita a saída stdout da execução job
+#SBATCH --error=/u/fibz/capincho/logs/saida.err #arquivo onde será escrito os erros de execução job tderr
 
 # Access positional arguments
 PATH=$1
@@ -17,12 +17,12 @@ MODEL=$2
 OUTPUT=$3
 
 # Load any necessary modules (Python module, if needed)
-module load python/3.8
+module load python/3.8.0
 module load cuda/11.6
 
 # Install dependencies from requirements.txt
-pip install --upgrade pip
-pip install -r requirements.txt
+pip3 install --upgrade pip
+pip3 install -r requirements.txt
 
 # Run the Python script
 python textLoader.py --path $PATH --model $MODEL --output $OUTPUT
