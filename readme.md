@@ -11,6 +11,13 @@ Some examples from coco dataset, after training for 2 epochs and n=10:
 
 ![image 3](figs/captions_000000391722.jpg)
 
+### Installation ###
+````angular2html
+pip install git+https://github.com/openai/CLIP.git
+pip install -r requirements.txt
+````
+
+
 ### Usage ###
 check the following files:
 
