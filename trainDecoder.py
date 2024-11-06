@@ -11,7 +11,7 @@ from decoder import OPT
 
 
 def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefix_len, fp, output_name, text_only,
-          full_finetune, schedule, add_noise, variance):
+          full_finetune, schedule, add_noise, variance, save_history):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     decoder = OPT(model_name, device, prefix_length=prefix_len, precision=fp, add_noise=add_noise, variance=variance)
     if not full_finetune:
@@ -24,9 +24,9 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
     if schedule:
         scheduler = get_linear_schedule_with_warmup(optim, num_warmup_steps=200, num_training_steps=epochs * len(loader))
     save_path = f'checkpoints/caption/{output_name}.pt'
-
-    losses = []
+    avg_losses = []
     for epoch in range(epochs):
+        epoch_loss = []
         for batch in tqdm(loader):
             optim.zero_grad()
             output = decoder(batch)
@@ -35,25 +35,34 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
             if schedule:
                 scheduler.step()
             loss = output.loss.detach().cpu().item()
-            losses.append(loss)
+            epoch_loss.append(loss)
             if math.isnan(loss):
                 print('Loss is NaN')
-
-            plt.plot(range(len(losses)), losses, label='loss')
-            plt.xlabel('step')
-            plt.ylabel('loss')
-            plt.title(f'training {output_name}')
-            plt.savefig(f'plots/caption/{output_name}.png')
-            plt.clf()
 
         model_dict = {'epoch': epoch + 1,
                       'model_state_dict': decoder.state_dict(),
                       'optimizer_state_dict': optim.state_dict(),
-                      'loss': losses[-1]
+                      'loss': epoch_loss[-1]
                       }
-        torch.save(model_dict, save_path)
+        avg_losses.append(sum(epoch_loss) / len(epoch_loss))
+
+        if save_history:
+            path = save_path.split('.')[0]
+            path += f'_epoch{epoch}.pt'
+            torch.save(model_dict, path)
+        else:
+            torch.save(model_dict, save_path)
+
         print(f'saved model epoch {epoch + 1}')
         time.sleep(1)
+
+    plt.plot(range(len(avg_losses)), avg_losses, label='loss')
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.title(f'training {output_name}')
+    plt.savefig(f'plots/caption/{output_name}.png')
+
+    plt.clf()
 
 
 if __name__ == '__main__':
@@ -74,12 +83,13 @@ if __name__ == '__main__':
     parser.add_argument('--schedule', action='store_true', help='use linear scheduler', default=False)
     parser.add_argument('--noise', action='store_true', help='add noise to embeddings', default=False)
     parser.add_argument('--variance', type=float, help='variance for noise injection', default=0.016)
+    parser.add_argument('--history', action='store_true', help='save epoch history', default=False)
     args = parser.parse_args()
 
     precision = torch.float16 if args.fp == 'fp16' else torch.float32
     train(args.epochs, args.batch_size, args.lr, args.embeddings, args.rank, args.alpha, args.dropout,
           args.model_name, args.prefix_len, precision, args.output, args.text_only, args.full_finetune, args.schedule,
-          args.noise, args.variance)
+          args.noise, args.variance, args.history)
 
     result_dict = args.__dict__
     result_dict['checkpoint_path'] = f'checkpoints/caption/{args.output}.pt'
