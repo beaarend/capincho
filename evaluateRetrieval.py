@@ -6,7 +6,11 @@ from tqdm import tqdm
 from adapters import ContrastiveResidualAdapter, SigAdapter, DynamicContrastiveResidualAdapter
 import matplotlib.pyplot as plt
 import clip
-import open_clip
+try:
+    import open_clip
+except ImportError:
+    print('open_clip is not available')
+
 device = torch.device("cuda" if torch.cuda.is_available() else "")
 
 

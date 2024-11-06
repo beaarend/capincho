@@ -1,6 +1,4 @@
 from projectionHeads import TwoLayerHead, ResidualHead
-import os.path
-import random
 import pandas as pd
 import pickle
 import clip
@@ -8,9 +6,6 @@ import torch
 from torchinfo import summary
 from PIL import Image
 import re
-from skimage.metrics import structural_similarity as ssim, mean_squared_error, peak_signal_noise_ratio
-import lpips
-import json
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt

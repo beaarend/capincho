@@ -1,8 +1,12 @@
-import open_clip
 import torch
 from PIL import Image
 from abc import ABC, abstractmethod
 import clip
+
+try:
+    import open_clip
+except ImportError:
+    print('Opening clip not available')
 
 
 class Model(ABC):

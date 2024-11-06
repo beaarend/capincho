@@ -2,7 +2,6 @@ import json
 import os.path
 import random
 from embeddingsDataset import COCODataset
-import torchvision.datasets as dset
 from decoder import OPT
 import torch
 import argparse

@@ -1,6 +1,5 @@
 import argparse
 import json
-import os.path
 import time
 import torch
 from adapters import ContrastiveResidualAdapter, SigAdapter
