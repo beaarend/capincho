@@ -1,4 +1,3 @@
-from projectionHeads import TwoLayerHead, ResidualHead
 import pandas as pd
 import pickle
 import clip
@@ -106,17 +105,16 @@ def concat_images():
     cv2.imwrite('final vit.png', final)
 
 
-def models_size():
-    for d in [256, 512, 768, 1024, 1280, 1536]:
-        model = TwoLayerHead(1024, d)
-        summary_data = summary(model, (1, 1024), verbose=0)
-        x = re.search("Trainable params.*", str(summary_data))
-        params = x.group(0).split(' ')[-1].replace(',', '')
-        print(d, params)
+def generate_dummy_texts(n=10):
+    import string
+    import random
+    import pandas
+    dummy_texts = {'texts': []}
+    for i in range(n):
+        dummy_texts['texts'].append(''.join(random.choice(string.ascii_uppercase) for _ in range(10)))
+    pandas.DataFrame.from_dict(dummy_texts).to_excel('dummy.xlsx')
 
-    model = ResidualHead(1024, 1024, 0.6)
-    summary_data = summary(model, (1, 1024), verbose=0)
-    x = re.search("Trainable params.*", str(summary_data))
-    params = x.group(0).split(' ')[-1].replace(',', '')
-    print('residual', params)
+
+if __name__ == '__main__':
+    generate_dummy_texts()
 
