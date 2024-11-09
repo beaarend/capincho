@@ -8,11 +8,17 @@ import numpy as np
 
 
 class TextLoader(Dataset):
-    def __init__(self, data_path, has_embeddings=False):
-        data = pd.read_excel(data_path)
-        self.texts = data['texts']
-        if has_embeddings:
+    def __init__(self, data_path, has_embeddings=False, ):
+        if not has_embeddings:
+            data = pd.read_excel(data_path)
+            self.texts = data['texts']
+        else:
+            with open(data_path, 'rb') as f:
+                data = pickle.load(f)
+
             self.embeddings = data['embeddings']
+            self.texts = data['captions']
+
         self.has_embeddings = has_embeddings
 
     def __len__(self):
@@ -20,7 +26,8 @@ class TextLoader(Dataset):
 
     def __getitem__(self, index):
         if self.has_embeddings:
-            return {'captions': self.texts[index], 'embeddings': self.embeddings[index]}
+            embedding = torch.tensor(self.embeddings[index])
+            return {'captions': self.texts[index], 'embeddings': embedding}
         else:
             return {'captions': self.texts[index]}
 
