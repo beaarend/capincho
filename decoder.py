@@ -1,10 +1,13 @@
 import torch
 import torch.nn as nn
 from transformers import AutoTokenizer, AutoModelForCausalLM, set_seed
-from peft import LoraConfig, get_peft_model
 from mapping import Mapper
 from captioningDataset import CaptioningDataset
 import math
+try:
+    from peft import LoraConfig, get_peft_model
+except ImportError:
+    print('lora not available')
 
 
 class OPT(nn.Module):

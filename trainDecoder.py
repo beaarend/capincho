@@ -66,7 +66,6 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
     plt.ylabel('loss')
     plt.title(f'training {output_name}')
     plt.savefig(f'plots/caption/{output_name}.png')
-
     plt.clf()
 
 

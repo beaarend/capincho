@@ -63,7 +63,7 @@ if __name__ == '__main__':
             texts += batch['captions']
 
     new_dict = {'captions': texts, 'embeddings': embeddings}
-    print(embeddings)
-    print(texts)
+    # print(embeddings)
+    # print(texts)
     with open(args.output, 'wb') as f:
         pickle.dump(new_dict, f)
