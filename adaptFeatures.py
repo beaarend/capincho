@@ -10,17 +10,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "")
 
 
 def adapt_features(model,
-                   checkpoint_path='checkpoints/contrastive/clip_residual_MPT.pt',
                    embeddings_path='datasets_torchvision/embeddings/coco_ViTL_val.pkl',
                    save_path='datasets_torchvision/embeddings/coco_MPT.pkl',):
-
-    assert os.path.exists(checkpoint_path), f'No checkpoint found at {checkpoint_path}'
-    assert os.path.exists(embeddings_path), f'No embedding found at {embeddings_path}'
-
-    checkpoint = torch.load(checkpoint_path)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    model.eval()
-    model.to(device)
 
     dataset = COCODataset(embeddings_path)
     # single batch
@@ -57,11 +48,16 @@ if __name__ == '__main__':
                                            config['learnable_alpha'])
 
     else:
-        model = SigAdapter(config['embedding_dim'], config['alpha'], config['bias'],logit_scale,
+        logit_bias = config['bias'] * torch.ones([])
+        model = SigAdapter(config['embedding_dim'], config['alpha'], logit_bias, logit_scale,
                            config['multiple_positives'], config['use_bias'], )
 
+    checkpoint = torch.load(config['checkpoint_path'])
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model.eval()
+    model.to(device)
+
     adapt_features(model,
-                   checkpoint_path=config['checkpoint_path'],
                    save_path=args.output,
                    embeddings_path=args.embeddings)
 

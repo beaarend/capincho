@@ -1,5 +1,6 @@
 import argparse
 import json
+import pickle
 import time
 import torch
 from adapters import ContrastiveResidualAdapter, SigAdapter
@@ -49,6 +50,9 @@ def run_training(identifier, batch_size, dataset, model, epochs, lr, patience, d
     torch.save(es.model_to_save(), f'checkpoints/contrastive/{identifier}.pt')
     plot_curves(training_losses, validation_losses, f'{identifier}.png',
                 'contrastive adapter')
+    log = {'training_loss': training_losses, 'validation_loss': validation_losses}
+    with open(f'logs/{identifier}.pkl', 'wb') as f:
+        pickle.dump(log, f)
 
 
 if __name__ == '__main__':
@@ -61,7 +65,7 @@ if __name__ == '__main__':
     parser.add_argument('--bias', type=float, default=-10., help='logit bias, sig adapter')
     parser.add_argument('--embeddings', type=str, default='coco_openclip',
                         help='embeddings path root, val and train will be appended later')
-    parser.add_argument('--use_bias', action='store_true', help='use logit bias in sig adapter', default=True)
+    parser.add_argument('--use_bias', action='store_true', help='use logit bias in sig adapter', default=False)
     parser.add_argument('--multiple_positives', action='store_true',
                         help='use multiple positives per batch in sig adapter', default=False)
     parser.add_argument('--batch_size', type=int, default=400, help='batch size')
