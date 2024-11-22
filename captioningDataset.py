@@ -30,8 +30,13 @@ class CaptioningDataset(Dataset):
 
         # embeddings
         if text_only:
-            n, c, d = embeddings['texts_embeddings'].shape
-            self.embeddings = embeddings['texts_embeddings'].view(n*c, d)
+            if not torch.is_tensor(embeddings['texts_embeddings']):
+                self.embeddings = torch.stack(embeddings['texts_embeddings'], dim=0)
+            else:
+                self.embeddings = embeddings['texts_embeddings']
+
+            n, c, d = self.embeddings.shape
+            self.embeddings = self.embeddings.view(n*5, d)
 
         else:
             self.embeddings = embeddings['image_embeddings']
@@ -58,16 +63,19 @@ class CaptioningDataset(Dataset):
 
 
 if __name__ == '__main__':
-    dataset = CaptioningDataset(f'embeddings/coco_openclip_adapter_train.pkl', text_only=True)
+    dataset = CaptioningDataset(f'embeddings/coco_openclip_train.pkl', text_only=True)
     # print(len(dataset))
-    # print(len(dataset[:]['embeddings']))
+    # print(dataset[:]['embeddings'])
+    # print(dataset['embeddings'])
     # print(dataset[:]['captions'])
     # loader = dataset.get_loader()
     # print(dataset[:]['captions'])
     # for batch in loader:
         # print(len(batch['captions']))
     #     print(batch['embeddings'].shape, len(batch['captions']))
-
+    # with open('embeddings/coco_openclip_train.pkl', 'rb') as f:
+    #     embeddings = pickle.load(f)
+    #     print(embeddings['texts_embeddings'])
 
 
 

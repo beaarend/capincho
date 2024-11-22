@@ -1,4 +1,5 @@
 import argparse
+import pickle
 import time
 import torch
 from transformers import AdamW, get_linear_schedule_with_warmup
@@ -9,12 +10,17 @@ import matplotlib.pyplot as plt
 import json
 from decoder import OPT
 from textLoader import TextLoader
+from torch import nn
 
 
 def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefix_len, fp, output_name, text_only,
           full_finetune, schedule, add_noise, variance, save_history, datset):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     decoder = OPT(model_name, device, prefix_length=prefix_len, precision=fp, add_noise=add_noise, variance=variance)
+
+    if torch.cuda.device_count() > 1:
+        decoder = nn.DataParallel(decoder)
+
     if not full_finetune:
         decoder.lora_model(r, alpha, dropout)
         print("Lora model")
@@ -65,8 +71,12 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
     plt.xlabel('epoch')
     plt.ylabel('loss')
     plt.title(f'training {output_name}')
-    plt.savefig(f'plots/caption/{output_name}.png')
+    plt.savefig(f'plots/experiment training/{output_name}.png')
+
     plt.clf()
+    log = {'training_loss': avg_losses, 'validation_loss': []}
+    with open(f'loss/{output_name}.pkl', 'wb') as f:
+        pickle.dump(log, f)
 
 
 if __name__ == '__main__':

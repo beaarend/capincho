@@ -30,6 +30,7 @@ if __name__ == '__main__':
     data = {'image_name': [], 'image_id': [], 'image_embeddings': [], 'texts_embeddings': [], }
     for i, image in enumerate(tqdm(imgs)):
         data['image_name'].append(image['file_name'])
+
         data['image_id'].append(ids[i])
         img_embeds = model.visual_embedding('datasets_torchvision/coco_2017/{}2017/{}'.format(args.split,
                                                                                               image['file_name']))

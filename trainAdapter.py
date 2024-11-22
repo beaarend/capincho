@@ -51,7 +51,7 @@ def run_training(identifier, batch_size, dataset, model, epochs, lr, patience, d
     plot_curves(training_losses, validation_losses, f'{identifier}.png',
                 'contrastive adapter')
     log = {'training_loss': training_losses, 'validation_loss': validation_losses}
-    with open(f'logs/{identifier}.pkl', 'wb') as f:
+    with open(f'loss/{identifier}.pkl', 'wb') as f:
         pickle.dump(log, f)
 
 
