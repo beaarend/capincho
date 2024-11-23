@@ -14,7 +14,7 @@ from torch import nn
 
 
 def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefix_len, fp, output_name, text_only,
-          full_finetune, schedule, add_noise, variance, save_history, datset):
+          full_finetune, schedule, add_noise, variance, save_history, dataset):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     decoder = OPT(model_name, device, prefix_length=prefix_len, precision=fp, add_noise=add_noise, variance=variance)
 
@@ -25,13 +25,13 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
         decoder.lora_model(r, alpha, dropout)
         print("Lora model")
 
-    if datset == 'coco':
-        dataset = CaptioningDataset(f'embeddings/{filename}', text_only)
+    if dataset == 'coco':
+        data = CaptioningDataset(f'embeddings/{filename}', text_only)
     else:
-        dataset = TextLoader(f'embeddings/{filename}', has_embeddings=True)
+        data = TextLoader(f'embeddings/{filename}', has_embeddings=True)
 
     optim = AdamW(decoder.parameters(), lr=lr)
-    loader = dataset.get_loader(batch_size=batch_size)
+    loader = data.get_loader(batch_size=batch_size)
     if schedule:
         scheduler = get_linear_schedule_with_warmup(optim, num_warmup_steps=200, num_training_steps=epochs * len(loader))
     save_path = f'checkpoints/caption/{output_name}.pt'

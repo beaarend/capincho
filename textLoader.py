@@ -44,7 +44,7 @@ if __name__ == '__main__':
     parser.add_argument('--output', '-o', type=str, required=True, help='output path')
     parser.add_argument('--model', '-m', type=str, required=True, help='model name', choices=['openclip', 'clip'])
     args = parser.parse_args()
-    device = torch.device("cuda" if torch.cuda.is_available() else "")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     data = TextLoader(args.path, has_embeddings=False)
 
     if args.model == 'openclip':
