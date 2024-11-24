@@ -18,3 +18,4 @@ embeddings/*
 descricoes.xlsx
 *.png
 *.xlsx
+*.pkl

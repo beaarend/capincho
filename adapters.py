@@ -4,7 +4,7 @@ import torch.nn as nn
 from projectionHeads import ResidualLearnableHead, ResidualDynamicHead
 import numpy as np
 from embeddingsDataset import COCODataset
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class ContrastiveResidualAdapter(nn.Module):

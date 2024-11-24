@@ -2,11 +2,9 @@ import pandas as pd
 import pickle
 import clip
 import torch
-from torchinfo import summary
 from PIL import Image
 import re
 import numpy as np
-import cv2
 import matplotlib.pyplot as plt
 
 
@@ -105,7 +103,7 @@ def concat_images():
     cv2.imwrite('final vit.png', final)
 
 
-def generate_dummy_texts(n=10):
+def generate_dummy_texts(n=36):
     import string
     import random
     import pandas

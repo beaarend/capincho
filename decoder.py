@@ -99,7 +99,7 @@ class OPT(nn.Module):
 
 
 if '__main__' == __name__:
-    device = torch.device("cuda" if torch.cuda.is_available() else "")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "")
     dataset = CaptioningDataset('embeddings/coco_openclip_val.pkl')
     loader = dataset.get_loader()
     decoder = OPT('facebook/opt-350m', device)

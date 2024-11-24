@@ -6,7 +6,7 @@ import torch
 from adapters import ContrastiveResidualAdapter, SigAdapter
 from embeddingsDataset import COCODataset
 
-device = torch.device("cuda" if torch.cuda.is_available() else "")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "")
 
 
 def adapt_features(model,

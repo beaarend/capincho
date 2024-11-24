@@ -6,7 +6,7 @@ from tqdm import tqdm
 import pickle
 import foundation_models
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-device = torch.device("cuda") if torch.cuda.is_available() else "cpu"
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 if __name__ == '__main__':
