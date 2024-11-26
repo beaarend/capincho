@@ -2,6 +2,7 @@ import argparse
 import pickle
 import time
 import torch
+from torch.optim import lr_scheduler
 from transformers import AdamW, get_linear_schedule_with_warmup
 from captioningDataset import CaptioningDataset
 from tqdm import tqdm
@@ -11,29 +12,36 @@ import json
 from decoder import OPT
 from textLoader import TextLoader
 from torch import nn
+from accelerate import Accelerator
 
 
 def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefix_len, fp, output_name, text_only,
           full_finetune, schedule, add_noise, variance, save_history, dataset):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    # model, data, optimizer
     decoder = OPT(model_name, device, prefix_length=prefix_len, precision=fp, add_noise=add_noise, variance=variance)
-
-    # if torch.cuda.device_count() > 1:
-    #     decoder.model = nn.DataParallel(decoder.model)
-
-    if not full_finetune:
-        decoder.lora_model(r, alpha, dropout)
-        print("Lora model")
+    optim = AdamW(decoder.parameters(), lr=lr)
 
     if dataset == 'coco':
         data = CaptioningDataset(f'embeddings/{filename}', text_only)
     else:
         data = TextLoader(f'embeddings/{filename}', has_embeddings=True)
 
-    optim = AdamW(decoder.parameters(), lr=lr)
     loader = data.get_loader(batch_size=batch_size)
+    scheduler = None
     if schedule:
-        scheduler = get_linear_schedule_with_warmup(optim, num_warmup_steps=200, num_training_steps=epochs * len(loader))
+        scheduler = get_linear_schedule_with_warmup(optim, num_warmup_steps=10,
+                                                    num_training_steps=epochs * len(loader))
+    accelerator = None
+    if torch.cuda.device_count() > 1:
+        accelerator = Accelerator()
+        model, optim, loader = accelerator.prepare(decoder, optim, loader)
+
+    if not full_finetune:
+        decoder.lora_model(r, alpha, dropout)
+        print("Lora model")
+
     save_path = f'checkpoints/caption/{output_name}.pt'
     avg_losses = []
     for epoch in range(epochs):
@@ -41,7 +49,11 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
         for batch in tqdm(loader):
             optim.zero_grad()
             output = decoder(batch)
-            output.loss.backward()
+            if accelerator:
+                accelerator.backward(output.loss)
+            else:
+                output.loss.backward()
+
             optim.step()
             if schedule:
                 scheduler.step()

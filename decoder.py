@@ -111,12 +111,12 @@ class hugging_decoder(OPT):
 
         ignore = torch.ones(labels.shape[0], self.prefix_length + 1).to(self.device) * -100
         labels = torch.concat([ignore, labels[:, 1:]], dim=1)
-        return self.model(inputs_embeds=input_emb, labels=labels.to(torch.long))
+        return self.model.module(inputs_embeds=input_emb, labels=labels.to(torch.long))
 
     def get_input_embeds(self, prompt):
         # already tokenized when using trainer API
         # input_ids = self.tokenizer(prompt, return_tensors="pt", padding=True).input_ids.to(self.device).squeeze(0)
-        embeddings = self.model.get_input_embeddings()
+        embeddings = self.model.module.get_input_embeddings()
         return embeddings(prompt)
 
 

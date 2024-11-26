@@ -13,25 +13,20 @@ class CustomTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         embeddings = inputs['embeddings']
         embeddings = embeddings / embeddings.norm(dim=-1, keepdim=True)
-        if return_outputs:
-            print('returning outputs will be ignored, not implemented')
-        # print(inputs)
+
         captions = inputs['captions']
-        if model.add_noise:
+        if model.module.add_noise:
             embeddings = model.noise_injection(embeddings)
 
-        prefix_tokens = model.mapper(embeddings).view(-1, model.prefix_length, model.hidden_size)
-        captions_emb = model.get_input_embeds(captions).to(model.device, dtype=model.fp)
+        prefix_tokens = model.module.mapper(embeddings).view(-1, model.prefix_length, model.hidden_size)
+        captions_emb = model.module.get_input_embeds(captions).to(model.device, dtype=model.fp)
         # print(prefix_tokens.shape, embeddings.shape, captions_emb.shape)
 
         # [batch, bos + prefix + caption, d_model]
         input_emb = torch.concat([captions_emb[:, :1, :], prefix_tokens, captions_emb[:, 1:, :]], dim=1).to(model.fp)
-        # print(input_emb.shape)
-        # labels = model.tokenizer(captions, return_tensors="pt", padding=True).input_ids.to(
-        #     model.device, model.fp)
+
         labels = inputs['captions']
         # opt ignores -100 labels during loss computation
-        # print(input_emb.shape)
         ignore = torch.ones(labels.shape[0], model.prefix_length + 1).to(model.device) * -100
 
         labels = torch.concat([ignore, labels[:, 1:]], dim=1)
