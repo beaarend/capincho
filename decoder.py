@@ -29,6 +29,9 @@ class OPT(nn.Module):
         if self.device:
             self.model.to(self.device)
             self.mapper.to(self.device)
+        else:
+            #
+            self.mapper.to('cuda:0')
 
     def generate(self, prompt, stochastic=False, max_tokens=50, seed=32):
         if stochastic:
