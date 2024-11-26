@@ -17,7 +17,11 @@ from accelerate import Accelerator
 
 def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefix_len, fp, output_name, text_only,
           full_finetune, schedule, add_noise, variance, save_history, dataset):
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    # let accelerator handle devices
+    device = None
+    if not torch.cuda.device_count() > 1:
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # model, data, optimizer
     decoder = OPT(model_name, device, prefix_length=prefix_len, precision=fp, add_noise=add_noise, variance=variance)
@@ -30,13 +34,14 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
 
     loader = data.get_loader(batch_size=batch_size)
     scheduler = None
-    if schedule:
-        scheduler = get_linear_schedule_with_warmup(optim, num_warmup_steps=10,
-                                                    num_training_steps=epochs * len(loader))
     accelerator = None
     if torch.cuda.device_count() > 1:
         accelerator = Accelerator()
-        model, optim, loader = accelerator.prepare(decoder, optim, loader)
+        decoder, optim, loader = accelerator.prepare([decoder, optim, loader])
+
+    if schedule:
+        scheduler = get_linear_schedule_with_warmup(optim, num_warmup_steps=10,
+                                                    num_training_steps=epochs * len(loader))
 
     if not full_finetune:
         decoder.lora_model(r, alpha, dropout)
