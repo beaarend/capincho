@@ -13,6 +13,7 @@ except ImportError:
 class OPT(nn.Module):
     def __init__(self, model_name, device, precision=torch.float16, prefix_length=10, add_noise=True, variance=0.016):
         super(OPT, self).__init__()
+        self.device = device
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype=precision,
@@ -22,7 +23,6 @@ class OPT(nn.Module):
         self.add_noise = add_noise
         self.variance = variance
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
-        self.device = device
         self.hidden_size = self._get_hidden_size()
         self.prefix_length = prefix_length
         self.fp = precision
@@ -96,6 +96,28 @@ class OPT(nn.Module):
 
         )
         self.model = get_peft_model(self.model, config).to(self.fp)
+
+
+class hugging_decoder(OPT):
+    def forward(self, embeddings, captions):
+        embeddings = embeddings / embeddings.norm(dim=-1, keepdim=True)
+        if self.add_noise:
+            embeddings = self.noise_injection(embeddings)
+        prefix_tokens = self.mapper(embeddings).view(-1, self.prefix_length, self.hidden_size)
+        captions_emb = self.get_input_embeds(captions).to(self.device, dtype=self.fp)
+        input_emb = torch.concat([captions_emb[:, :1, :], prefix_tokens, captions_emb[:, 1:, :]], dim=1).to(self.fp)
+        labels = self.tokenizer(captions, return_tensors="pt", padding=True).input_ids.to(
+            self.device, self.fp)
+
+        ignore = torch.ones(labels.shape[0], self.prefix_length + 1).to(self.device) * -100
+        labels = torch.concat([ignore, labels[:, 1:]], dim=1)
+        return self.model(inputs_embeds=input_emb, labels=labels.to(torch.long))
+
+    def get_input_embeds(self, prompt):
+        # already tokenized when using trainer API
+        # input_ids = self.tokenizer(prompt, return_tensors="pt", padding=True).input_ids.to(self.device).squeeze(0)
+        embeddings = self.model.get_input_embeddings()
+        return embeddings(prompt)
 
 
 if '__main__' == __name__:
