@@ -10,7 +10,7 @@ from datasets import Dataset
 
 
 class CustomTrainer(Trainer):
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         embeddings = inputs['embeddings']
         embeddings = embeddings / embeddings.norm(dim=-1, keepdim=True)
         if return_outputs:
