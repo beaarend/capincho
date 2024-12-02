@@ -52,13 +52,12 @@ if __name__ == '__main__':
     results = {}
     mode = 'all'
     ratio = '1/5000' if mode == 'one' else '5/25000'
-    title = f'COCO Retrieval with Open CLIP encoders, {ratio}'
+    title = f'COCO Retrieval with openclip COCA model'
     # result = evaluate_image_text('datasets_torchvision/embeddings/coco_ViTL_val.pkl',
     #                              model.logit_scale, mode=mode)
     # results['CLIP zero shot'] = result.values()
-    paths = ['coco_openclip_adapter_val',
-             'coco_openclip_val.pkl',]
-    names = ['adapter', 'vanilla']
+    paths = ['coco_coca_adapter_val.pkl', 'coco_coca_val.pkl', 'coco_cocaft_val.pkl']
+    names = ['adapter', 'no finetune', 'finetune']
 
     for i, name in enumerate(paths):
         if 'adapter_' in name:
@@ -70,10 +69,10 @@ if __name__ == '__main__':
 
             checkpoint = torch.load(f'checkpoints/contrastive/coco_openclip_adapter.pt')
             adapter.load_state_dict(checkpoint['model_state_dict'])
-            result = evaluate_image_text(f'embeddings/coco_openclip_adapter_val.pkl',
+            result = evaluate_image_text(f'embeddings/{name}',
                                          adapter.logit_scale, mode=mode)
         else:
-            result = evaluate_image_text(f'embeddings/coco_openclip_val.pkl',
+            result = evaluate_image_text(f'embeddings/{name}',
                                          model.logit_scale, mode=mode)
 
         results[names[i]] = result.values()

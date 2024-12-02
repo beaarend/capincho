@@ -4,6 +4,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, set_seed
 from mapping import Mapper
 from captioningDataset import CaptioningDataset
 import math
+import copy
 try:
     from peft import LoraConfig, get_peft_model
 except ImportError:
@@ -18,6 +19,8 @@ class OPT(nn.Module):
             model_name,
             torch_dtype=precision,
         )
+        # copy embeddings layer
+        self.embeddings = copy.deepcopy(self.model.get_input_embeddings())
         self.add_noise = add_noise
         self.variance = variance
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
@@ -29,9 +32,7 @@ class OPT(nn.Module):
         if self.device:
             self.model.to(self.device)
             self.mapper.to(self.device)
-        else:
-            #
-            self.mapper.to('cuda:0')
+            self.embeddings.to(self.device)
 
     def generate(self, prompt, stochastic=False, max_tokens=50, seed=32):
         if stochastic:
@@ -95,8 +96,7 @@ class OPT(nn.Module):
         else:
             input_ids = self.tokenizer(prompt, return_tensors="pt", padding=True).input_ids.squeeze(0)
 
-        embeddings = self.model.get_input_embeddings()
-        return embeddings(input_ids)
+        return self.embeddings(input_ids)
 
     def _get_hidden_size(self):
         ids = self.tokenizer("prompt", return_tensors="pt").input_ids.squeeze(0)
@@ -129,9 +129,15 @@ if '__main__' == __name__:
     device = torch.device("cuda:0" if torch.cuda.is_available() else "")
     dataset = CaptioningDataset('embeddings/coco_openclip_val.pkl')
     loader = dataset.get_loader()
-    decoder = OPT('facebook/opt-350m', device)
-    decoder.lora_model(16, 32, 0.05)
+    model = OPT('facebook/opt-350m', device)
+    # model.lora_model(16, 32, 0.05)
 
-    for batch in loader:
-        decoder(batch)
-        break
+    model.embeddings.to('cuda')
+    size_model = 0
+    for param in model.parameters():
+        if param.data.is_floating_point():
+            size_model += param.numel() * torch.finfo(param.data.dtype).bits
+        else:
+            size_model += param.numel() * torch.iinfo(param.data.dtype).bits
+    print(f"model size: {size_model} / bit | {size_model / 8e6:.2f} / MB")
+

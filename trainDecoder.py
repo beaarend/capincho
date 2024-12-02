@@ -25,6 +25,10 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
 
     # model, data, optimizer
     decoder = OPT(model_name, device, prefix_length=prefix_len, precision=fp, add_noise=add_noise, variance=variance)
+    if not full_finetune:
+        decoder.lora_model(r, alpha, dropout)
+        print("Lora model")
+
     optim = AdamW(decoder.parameters(), lr=lr)
 
     if dataset == 'coco':
@@ -35,20 +39,18 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
     loader = data.get_loader(batch_size=batch_size)
     scheduler = None
     accelerator = None
+    # accelerate prepare
     if torch.cuda.device_count() > 1:
         accelerator = Accelerator()
-        decoder, optim, loader = accelerator.prepare([decoder, optim, loader])
+        decoder.model, decoder.mapper, optim, loader = accelerator.prepare(decoder.model, decoder.mapper, optim, loader)
 
     if schedule:
         scheduler = get_linear_schedule_with_warmup(optim, num_warmup_steps=10,
                                                     num_training_steps=epochs * len(loader))
 
-    if not full_finetune:
-        decoder.lora_model(r, alpha, dropout)
-        print("Lora model")
-
     save_path = f'checkpoints/caption/{output_name}.pt'
     avg_losses = []
+    # training loop
     for epoch in range(epochs):
         epoch_loss = []
         for batch in tqdm(loader):
@@ -64,8 +66,7 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
                 scheduler.step()
             loss = output.loss.detach().cpu().item()
             epoch_loss.append(loss)
-            if math.isnan(loss):
-                print('Loss is NaN')
+            # print(f'allocated memory {(torch.cuda.memory_allocated(device="cuda:0") / 1e6)}')
 
         model_dict = {'epoch': epoch + 1,
                       'model_state_dict': decoder.state_dict(),

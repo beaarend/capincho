@@ -67,6 +67,7 @@ class OpenCoCa(Model):
         self.backbone, _, self.vision_preprocess = open_clip.create_model_and_transforms(
             model_name="coca_ViT-L-14",
             pretrained="laion2B-s13B-b90k",
+            # pretrained="mscoco_finetuned_laion2B-s13B-b90k",
             device=self.device
         )
         self.language_preprocess = open_clip.get_tokenizer('ViT-L-14')
