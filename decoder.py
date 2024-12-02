@@ -125,6 +125,24 @@ class OPT(nn.Module):
         self.model = get_peft_model(self.model, config).to(self.fp)
 
 
+# utility function
+def model_from_json(json_file, device):
+    import json
+    with open(json_file, 'r') as f:
+        config = json.load(f)
+    precision = torch.float16 if config['fp'] == 'fp16' else torch.float32
+
+    decoder = OPT(config['model_name'], device, prefix_length=config['prefix_len'], precision=precision,
+                  add_noise=config['text_only'])
+
+    if not config['full_finetune']:
+        decoder.lora_model(config['rank'], config['alpha'], config['dropout'])
+
+    checkpoint = torch.load(config['checkpoint_path'])
+    decoder.load_state_dict(checkpoint['model_state_dict'])
+    return decoder
+
+
 if '__main__' == __name__:
     device = torch.device("cuda:0" if torch.cuda.is_available() else "")
     dataset = CaptioningDataset('embeddings/coco_openclip_val.pkl')

@@ -19,3 +19,4 @@ descricoes.xlsx
 *.png
 *.xlsx
 *.pkl
+evaluateCaptioning.py
