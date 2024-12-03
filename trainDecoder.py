@@ -16,11 +16,11 @@ from accelerate import Accelerator
 
 
 def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefix_len, fp, output_name, text_only,
-          full_finetune, schedule, add_noise, variance, save_history, dataset):
+          full_finetune, schedule, add_noise, variance, save_history, dataset, accelerate):
 
     # let accelerator handle devices
     device = None
-    if not torch.cuda.device_count() > 1:
+    if not accelerate:
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # model, data, optimizer
@@ -89,7 +89,7 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
     plt.xlabel('epoch')
     plt.ylabel('loss')
     plt.title(f'training {output_name}')
-    plt.savefig(f'plots/experiment training/{output_name}.png')
+    plt.savefig(f'plots/experiment_training/{output_name}.png')
 
     plt.clf()
     log = {'training_loss': avg_losses, 'validation_loss': []}
@@ -117,12 +117,13 @@ if __name__ == '__main__':
     parser.add_argument('--variance', type=float, help='variance for noise injection', default=0.016)
     parser.add_argument('--history', action='store_true', help='save epoch history', default=False)
     parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'geo', 'cxr'], help='dataset name')
+    parser.add_argument('--accelerate', action='store_true', help='use accelerate', default=False)
     args = parser.parse_args()
 
     precision = torch.float16 if args.fp == 'fp16' else torch.float32
     train(args.epochs, args.batch_size, args.lr, args.embeddings, args.rank, args.alpha, args.dropout,
           args.model_name, args.prefix_len, precision, args.output, args.text_only, args.full_finetune, args.schedule,
-          args.noise, args.variance, args.history, args.dataset)
+          args.noise, args.variance, args.history, args.dataset, args.accelerate)
 
     result_dict = args.__dict__
     result_dict['checkpoint_path'] = f'checkpoints/caption/{args.output}.pt'

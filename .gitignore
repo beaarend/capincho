@@ -1,11 +1,12 @@
 fonts
 checkpoints
 cocoapi
-dataset
+geodataset
 datasets_torchvision
 experiments
 loss_logs
 outputs
+loss
 plots
 results
 temp.json
@@ -20,3 +21,6 @@ descricoes.xlsx
 *.xlsx
 *.pkl
 evaluateCaptioning.py
+logs
+config.yaml
+textDatasets

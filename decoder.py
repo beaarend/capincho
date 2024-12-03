@@ -20,7 +20,7 @@ class OPT(nn.Module):
             torch_dtype=precision,
         )
         # copy embeddings layer
-        self.embeddings = copy.deepcopy(self.model.get_input_embeddings())
+        self.embeddings_layer = copy.deepcopy(self.model.get_input_embeddings())
         self.add_noise = add_noise
         self.variance = variance
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
@@ -32,7 +32,7 @@ class OPT(nn.Module):
         if self.device:
             self.model.to(self.device)
             self.mapper.to(self.device)
-            self.embeddings.to(self.device)
+            self.embeddings_layer.to(self.device)
 
     def generate(self, prompt, stochastic=False, max_tokens=50, seed=32):
         if stochastic:
@@ -48,7 +48,7 @@ class OPT(nn.Module):
         if stochastic:
             set_seed(seed)
         embeddings = embeddings / embeddings.norm(dim=-1, keepdim=True)
-        bos = self.model.get_input_embeddings()(torch.tensor([2]).to(dtype=torch.long)).unsqueeze(0)
+        bos = self.embeddings_layer(torch.tensor([2]).to(dtype=torch.long)).unsqueeze(0)
 
         if self.device:
             bos = bos.to(self.device)
@@ -96,7 +96,7 @@ class OPT(nn.Module):
         else:
             input_ids = self.tokenizer(prompt, return_tensors="pt", padding=True).input_ids.squeeze(0)
 
-        return self.embeddings(input_ids)
+        return self.embeddings_layer(input_ids)
 
     def _get_hidden_size(self):
         ids = self.tokenizer("prompt", return_tensors="pt").input_ids.squeeze(0)
@@ -150,7 +150,7 @@ if '__main__' == __name__:
     model = OPT('facebook/opt-350m', device)
     # model.lora_model(16, 32, 0.05)
 
-    model.embeddings.to('cuda')
+    model.embeddings_layer.to('cuda')
     size_model = 0
     for param in model.parameters():
         if param.data.is_floating_point():

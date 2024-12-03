@@ -3,6 +3,8 @@ import random
 import torch
 from textLoader import TextLoader
 from decoder import model_from_json
+from tqdm import tqdm
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
@@ -13,11 +15,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
     data = TextLoader(args.embeddings, has_embeddings=True)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model_from_json(args.model, device)
     model.eval()
-    for i in [random.randint(0, len(data)) for i in range(10)]:
-        generated = model.caption(data[i]['embeddings'], max_tokens=200, )
+
+    for i in tqdm([random.randint(0, len(data)) for i in range(10)]):
+        generated = model.caption(data[i]['embeddings'], max_tokens=20, )
         print(data[i]['captions'], generated)
 
 
