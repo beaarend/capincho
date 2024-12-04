@@ -1,11 +1,6 @@
-import torch
-import matplotlib.pyplot as plt
-import torchvision.datasets as dset
-import pandas
-device = torch.device("cuda" if torch.cuda.is_available() else "")
-
 
 def plot_curves(training, validation, output_name, type):
+    import matplotlib.pyplot as plt
     plt.plot(training, label=f'training {type}')
     plt.plot(validation, label=f'validation {type}')
 
@@ -19,6 +14,8 @@ def plot_curves(training, validation, output_name, type):
 
 
 def coco_texts():
+    import pandas
+    import torchvision.datasets as dset
     data = dset.CocoCaptions(root=f'datasets_torchvision/coco_2017/train2017',
                              annFile=f'datasets_torchvision/coco_2017/annotations/captions_train2017.json', )
     texts = []
@@ -30,6 +27,7 @@ def coco_texts():
 
 
 def model_size(model):
+    import torch
     size_model = 0
     for param in model.parameters():
         if param.data.is_floating_point():
