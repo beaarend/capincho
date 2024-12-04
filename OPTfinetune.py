@@ -1,5 +1,4 @@
 import argparse
-
 import transformers
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -17,7 +16,7 @@ if __name__ == '__main__':
     model = AutoModelForCausalLM.from_pretrained(args.model, )
     tokenizer = AutoTokenizer.from_pretrained(args.model, )
 
-    data = load_dataset('text', data_files=args.dataset, encoding='utf8')
+    data = load_dataset('text', data_files=args.dataset, encoding='utf8', cache_dir=args.dataset)
     data = data.map(lambda sample: tokenizer(sample['text']), batched=True)
 
     trainer = transformers.Trainer(
