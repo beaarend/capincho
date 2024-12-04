@@ -10,6 +10,8 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', type=str, default='textDatasets/publico-COMPLETO.txt')
     parser.add_argument('--lr', type=float, default=1e-5)
     parser.add_argument('--epochs', type=int, default=1)
+    parser.add_argument('--output_dir', type=str, default='logs')
+    parser.add_argument('--save_dir', type=str, default='checkpoints/opt-finetune')
     args = parser.parse_args()
 
     model = AutoModelForCausalLM.from_pretrained(args.model, )
@@ -26,7 +28,7 @@ if __name__ == '__main__':
             logging_steps=1,
             logging_strategy='epoch',
             learning_rate=args.lr,
-            output_dir='logs',
+            output_dir=args.output_dir,
             save_strategy='epoch',
             per_device_train_batch_size=4,
             gradient_accumulation_steps=4,
@@ -34,5 +36,5 @@ if __name__ == '__main__':
         )
     )
     trainer.train()
-    trainer.save_model('checkpoints/opt-finetune')
+    trainer.save_model(args.save_dir)
 
