@@ -2,6 +2,8 @@ import argparse
 import transformers
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from accelerate import Accelerator
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -13,7 +15,8 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', type=str, default='checkpoints/opt-finetune')
     args = parser.parse_args()
 
-    model = AutoModelForCausalLM.from_pretrained(args.model, )
+
+    model = AutoModelForCausalLM.from_pretrained(args.model, device_map='auto', )
     tokenizer = AutoTokenizer.from_pretrained(args.model, )
 
     data = load_dataset('text', data_files=args.dataset, encoding='utf8', cache_dir=args.output_dir)
@@ -23,15 +26,19 @@ if __name__ == '__main__':
         model=model,
         train_dataset=data['train'],
         data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False),
+
         args=transformers.TrainingArguments(
-            logging_steps=1,
-            logging_strategy='epoch',
+            fp16=True,
+            logging_steps=200,
+            logging_strategy='steps',
             learning_rate=args.lr,
             output_dir=args.output_dir,
-            save_strategy='epoch',
-            per_device_train_batch_size=4,
-            gradient_accumulation_steps=4,
-            num_train_epochs=args.epochs
+            save_strategy='steps',
+            save_steps=200,
+            per_device_train_batch_size=2,
+            gradient_accumulation_steps=8,
+            num_train_epochs=args.epochs,
+
         )
     )
     trainer.train()
