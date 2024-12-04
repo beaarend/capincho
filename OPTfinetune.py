@@ -13,6 +13,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=1)
     parser.add_argument('--output_dir', type=str, default='logs')
     parser.add_argument('--save_dir', type=str, default='checkpoints/opt-finetune')
+    parser.add_argument('--fp16', action='store_true', default=False, help='use 16-bits floating point precision')
     args = parser.parse_args()
 
 
@@ -28,16 +29,17 @@ if __name__ == '__main__':
         data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False),
 
         args=transformers.TrainingArguments(
-            fp16=True,
+            fp16=args.fp16,
             logging_steps=200,
             logging_strategy='steps',
             learning_rate=args.lr,
             output_dir=args.output_dir,
             save_strategy='steps',
-            save_steps=200,
+            save_steps=50,
             per_device_train_batch_size=2,
             gradient_accumulation_steps=8,
             num_train_epochs=args.epochs,
+            overwrite_output_dir=True,
 
         )
     )
