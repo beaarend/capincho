@@ -3,13 +3,14 @@ import transformers
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import LoraConfig
+from util import model_size, learnable_parameters
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', type=str, default='facebook/opt-350m')
     parser.add_argument('--dataset', type=str, default='textDatasets/publico-COMPLETO.txt')
-    parser.add_argument('--lr', type=float, default=1e-5)
+    parser.add_argument('--lr', type=float, default=2e-4)
     parser.add_argument('--epochs', type=int, default=1)
     parser.add_argument('--output_dir', type=str, default='logs')
     parser.add_argument('--save_dir', type=str, default='checkpoints/opt-finetune')
@@ -22,8 +23,12 @@ if __name__ == '__main__':
 
     model = AutoModelForCausalLM.from_pretrained(args.model, device_map='auto', )
     tokenizer = AutoTokenizer.from_pretrained(args.model, )
+    model_size(model)
+    learnable_parameters(model)
 
     if args.lora:
+        for param in model.parameters():
+            param.requires_grad = False
         config = LoraConfig(
             r=args.rank,
             lora_alpha=args.alpha,
@@ -32,6 +37,9 @@ if __name__ == '__main__':
             task_type="CAUSAL_LM",
         )
         model.add_adapter(config, adapter_name='adapter-pt')
+
+        model_size(model)
+        learnable_parameters(model)
 
     data = load_dataset('text', data_files=args.dataset, encoding='utf8', cache_dir=args.output_dir)
     data = data.map(lambda sample: tokenizer(sample['text']), batched=True)

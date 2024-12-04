@@ -29,6 +29,28 @@ def coco_texts():
     df.to_csv(f'datasets_torchvision/coco_2017/texts.csv', index=False)
 
 
+def model_size(model):
+    size_model = 0
+    for param in model.parameters():
+        if param.data.is_floating_point():
+            size_model += param.numel() * torch.finfo(param.data.dtype).bits
+        else:
+            size_model += param.numel() * torch.iinfo(param.data.dtype).bits
+    print(f"model size: {size_model} / bit | {size_model / 8e6:.2f} / MB")
+    return size_model / 8e6
+
+
+def learnable_parameters(model):
+    learnable = 0
+    total = 0
+    for param in model.parameters():
+        total += param.numel()
+        if param.requires_grad:
+            learnable += param.numel()
+
+    print(f'total params: {total} learnable params: {learnable}')
+
+
 if __name__ == '__main__':
     coco_texts()
 
