@@ -64,6 +64,6 @@ if __name__ == '__main__':
             resume_from_checkpoint=args.resume,
         )
     )
-    trainer.train()
+    trainer.train(resume_from_checkpoint=args.resume)
     trainer.save_model(args.save_dir)
 
