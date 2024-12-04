@@ -2,23 +2,36 @@ import argparse
 import transformers
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from accelerate import Accelerator
+from peft import LoraConfig
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', type=str, default='facebook/opt-350m')
-    parser.add_argument('--tokenizer', type=str, default='facebook/opt-350m')
     parser.add_argument('--dataset', type=str, default='textDatasets/publico-COMPLETO.txt')
     parser.add_argument('--lr', type=float, default=1e-5)
     parser.add_argument('--epochs', type=int, default=1)
     parser.add_argument('--output_dir', type=str, default='logs')
     parser.add_argument('--save_dir', type=str, default='checkpoints/opt-finetune')
     parser.add_argument('--fp16', action='store_true', default=False, help='use 16-bits floating point precision')
+    parser.add_argument('--resume', default=False, help='resume from checkpoint', action="store_true")
+    parser.add_argument('--lora', action='store_true', default=False, help='Low Rank Adaptation')
+    parser.add_argument('--rank', type=int, default=16, help='rank for Low Rank Adaptation')
+    parser.add_argument('--alpha', type=float, default=32, help='alpha for Low Rank Adaptation')
     args = parser.parse_args()
 
     model = AutoModelForCausalLM.from_pretrained(args.model, device_map='auto', )
-    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer, )
+    tokenizer = AutoTokenizer.from_pretrained(args.model, )
+
+    if args.lora:
+        config = LoraConfig(
+            r=args.rank,
+            lora_alpha=args.alpha,
+            target_modules=["q_proj", "v_proj"],
+            bias="none",
+            task_type="CAUSAL_LM",
+        )
+        model.add_adapter(config, adapter_name='adapter-pt')
 
     data = load_dataset('text', data_files=args.dataset, encoding='utf8', cache_dir=args.output_dir)
     data = data.map(lambda sample: tokenizer(sample['text']), batched=True)
@@ -40,7 +53,7 @@ if __name__ == '__main__':
             gradient_accumulation_steps=8,
             num_train_epochs=args.epochs,
             overwrite_output_dir=True,
-
+            resume_from_checkpoint=args.resume,
         )
     )
     trainer.train()
