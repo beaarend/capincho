@@ -8,6 +8,7 @@ from accelerate import Accelerator
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', type=str, default='facebook/opt-350m')
+    parser.add_argument('--tokenizer', type=str, default='facebook/opt-350m')
     parser.add_argument('--dataset', type=str, default='textDatasets/publico-COMPLETO.txt')
     parser.add_argument('--lr', type=float, default=1e-5)
     parser.add_argument('--epochs', type=int, default=1)
@@ -15,7 +16,6 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', type=str, default='checkpoints/opt-finetune')
     parser.add_argument('--fp16', action='store_true', default=False, help='use 16-bits floating point precision')
     args = parser.parse_args()
-
 
     model = AutoModelForCausalLM.from_pretrained(args.model, device_map='auto', )
     tokenizer = AutoTokenizer.from_pretrained(args.model, )
