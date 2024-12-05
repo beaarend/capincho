@@ -4,6 +4,8 @@ from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import LoraConfig
 from util import model_size, learnable_parameters
+import os
+import glob
 
 
 if __name__ == '__main__':
@@ -21,25 +23,31 @@ if __name__ == '__main__':
     parser.add_argument('--alpha', type=float, default=32, help='alpha for Low Rank Adaptation')
     args = parser.parse_args()
 
-    model = AutoModelForCausalLM.from_pretrained(args.model, device_map='auto', )
+    if args.resume:
+        assert os.path.exists(args.output_dir), 'output directory does not exist'
+        checkpoints = glob.glob(f'{args.output_dir}/checkpoint-*')
+        assert len(checkpoints) > 0, f'no checkpoints found at {args.output_dir}'
+        steps = [c.split('-')[-1] for c in checkpoints]
+        steps.sort(reverse=True)
+        model = AutoModelForCausalLM.from_pretrained(f'{args.output_dir}/checkpoint-{steps[0]}')
+        print(f'loaded checkpoint-{steps[0]}')
+    else:
+        model = AutoModelForCausalLM.from_pretrained(args.model, device_map='auto', )
+        if args.lora:
+            for param in model.parameters():
+                param.requires_grad = False
+            config = LoraConfig(
+                r=args.rank,
+                lora_alpha=args.alpha,
+                target_modules=["q_proj", "v_proj"],
+                bias="none",
+                task_type="CAUSAL_LM",
+            )
+            model.add_adapter(config, adapter_name='adapter-pt')
+
     tokenizer = AutoTokenizer.from_pretrained(args.model, )
     model_size(model)
     learnable_parameters(model)
-
-    if args.lora:
-        for param in model.parameters():
-            param.requires_grad = False
-        config = LoraConfig(
-            r=args.rank,
-            lora_alpha=args.alpha,
-            target_modules=["q_proj", "v_proj"],
-            bias="none",
-            task_type="CAUSAL_LM",
-        )
-        model.add_adapter(config, adapter_name='adapter-pt')
-
-        model_size(model)
-        learnable_parameters(model)
 
     data = load_dataset('text', data_files=args.dataset, encoding='utf8', cache_dir=args.output_dir)
     data = data.map(lambda sample: tokenizer(sample['text']), batched=True)
@@ -56,14 +64,14 @@ if __name__ == '__main__':
             learning_rate=args.lr,
             output_dir=args.output_dir,
             save_strategy='steps',
-            save_steps=50,
+            save_steps=100,
             per_device_train_batch_size=2,
-            gradient_accumulation_steps=8,
+            gradient_accumulation_steps=4,
             num_train_epochs=args.epochs,
             overwrite_output_dir=True,
-            resume_from_checkpoint=args.resume,
+
         )
     )
-    trainer.train(resume_from_checkpoint=args.resume)
+    trainer.train()
     trainer.save_model(args.save_dir)
 

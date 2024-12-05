@@ -46,7 +46,7 @@ def learnable_parameters(model):
         if param.requires_grad:
             learnable += param.numel()
 
-    print(f'total params: {total} learnable params: {learnable}')
+    print(f'total params: {total / 1e6}M,  learnable params: {learnable / 1e6}M')
 
 
 if __name__ == '__main__':
