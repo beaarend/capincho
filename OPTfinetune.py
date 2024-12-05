@@ -29,7 +29,7 @@ if __name__ == '__main__':
         assert os.path.exists(args.output_dir), 'output directory does not exist'
         checkpoints = glob.glob(f'{args.output_dir}/checkpoint-*')
         assert len(checkpoints) > 0, f'no checkpoints found at {args.output_dir}'
-        steps = [c.split('-')[-1] for c in checkpoints]
+        steps = [int(c.split('-')[-1]) for c in checkpoints]
         steps.sort(reverse=True)
         model = AutoModelForCausalLM.from_pretrained(f'{args.output_dir}/checkpoint-{steps[0]}')
         print(f'loaded checkpoint-{steps[0]}')
