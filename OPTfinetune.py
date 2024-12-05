@@ -60,17 +60,18 @@ if __name__ == '__main__':
         peft_config=config,
         args=transformers.TrainingArguments(
             fp16=args.fp16,
-            logging_steps=500,
+            logging_steps=5000,
             logging_strategy='steps',
             learning_rate=args.lr,
             output_dir=args.output_dir,
             save_strategy='steps',
-            save_steps=500,
+            save_steps=10000,
             per_device_train_batch_size=args.batch_size,
             gradient_accumulation_steps=args.accumulate_grad_steps,
             num_train_epochs=args.epochs,
             overwrite_output_dir=True,
             resume_from_checkpoint=check_path if args.resume else False,
+            save_total_limit=10,
         )
     )
 
