@@ -21,6 +21,8 @@ if __name__ == '__main__':
     parser.add_argument('--lora', action='store_true', default=False, help='Low Rank Adaptation')
     parser.add_argument('--rank', type=int, default=16, help='rank for Low Rank Adaptation')
     parser.add_argument('--alpha', type=float, default=32, help='alpha for Low Rank Adaptation')
+    parser.add_argument('--accumulate_grad_steps', type=int, default=1, help='number of steps to accumulate grad')
+    parser.add_argument('--batch_size', type=int, default=4, help='batch size per device')
     args = parser.parse_args()
 
     if args.resume:
@@ -31,6 +33,7 @@ if __name__ == '__main__':
         steps.sort(reverse=True)
         model = AutoModelForCausalLM.from_pretrained(f'{args.output_dir}/checkpoint-{steps[0]}')
         print(f'loaded checkpoint-{steps[0]}')
+
     else:
         model = AutoModelForCausalLM.from_pretrained(args.model, device_map='auto', )
         if args.lora:
@@ -59,14 +62,14 @@ if __name__ == '__main__':
 
         args=transformers.TrainingArguments(
             fp16=args.fp16,
-            logging_steps=200,
+            logging_steps=500,
             logging_strategy='steps',
             learning_rate=args.lr,
             output_dir=args.output_dir,
             save_strategy='steps',
-            save_steps=100,
-            per_device_train_batch_size=2,
-            gradient_accumulation_steps=4,
+            save_steps=500,
+            per_device_train_batch_size=args.batch_size,
+            gradient_accumulation_steps=args.accumulate_grad_steps,
             num_train_epochs=args.epochs,
             overwrite_output_dir=True,
 
