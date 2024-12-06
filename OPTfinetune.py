@@ -41,10 +41,9 @@ if __name__ == '__main__':
         check_path = f'{args.output_dir}/checkpoint-{last_step}'
 
     tokenizer = AutoTokenizer.from_pretrained(args.model, )
-
     data = load_dataset('text', data_files=args.dataset, encoding='utf8', cache_dir=args.output_dir)
-    data = data.map(lambda sample: tokenizer(sample['text']), batched=True)
-
+    data = data.map(batched=True)
+    # lambda sample: tokenizer(sample['text'], truncation=True, max_length=512),
     config = LoraConfig(
         r=args.rank,
         lora_alpha=args.alpha,
@@ -54,7 +53,7 @@ if __name__ == '__main__':
     )
 
     trainer = SFTTrainer(
-        'facebook/opt-350m',
+        args.model,
         train_dataset=data['train'],
         dataset_text_field="text",
         peft_config=config,
@@ -74,7 +73,6 @@ if __name__ == '__main__':
             save_total_limit=10,
         )
     )
-
     model_size(trainer.model)
     learnable_parameters(trainer.model)
 
