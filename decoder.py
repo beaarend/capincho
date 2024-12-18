@@ -5,25 +5,32 @@ from mapping import Mapper
 from captioningDataset import CaptioningDataset
 import math
 import copy
+from transformers import T5Model, T5ForConditionalGeneration
+from transformers import T5Tokenizer
 try:
     from peft import LoraConfig, get_peft_model
 except ImportError:
     print('lora not available')
 
 
-class OPT(nn.Module):
+class Decoder(nn.Module):
     def __init__(self, model_name, device, precision=torch.float16, prefix_length=10, add_noise=True, variance=0.016):
-        super(OPT, self).__init__()
+        super(Decoder, self).__init__()
         self.device = device
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            torch_dtype=precision,
-        )
-        # copy embeddings layer
+        if 'opt' in model_name:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                torch_dtype=precision,
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
+
+        elif 't5' in model_name:
+            self.tokenizer = T5Tokenizer.from_pretrained(model_name)
+            self.model = T5ForConditionalGeneration.from_pretrained(model_name)
+
         self.embeddings_layer = copy.deepcopy(self.model.get_input_embeddings())
         self.add_noise = add_noise
         self.variance = variance
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
         self.hidden_size = self._get_hidden_size()
         self.prefix_length = prefix_length
         self.fp = precision
@@ -48,7 +55,10 @@ class OPT(nn.Module):
         if stochastic:
             set_seed(seed)
         embeddings = embeddings / embeddings.norm(dim=-1, keepdim=True)
-        bos = self.embeddings_layer(torch.tensor([2]).to(dtype=torch.long)).unsqueeze(0)
+        sos = torch.tensor([2]).to(dtype=torch.long)
+        if self.device:
+            sos = sos.to(self.device)
+        bos = self.embeddings_layer(sos).unsqueeze(0)
 
         if self.device:
             bos = bos.to(self.device)
@@ -60,6 +70,10 @@ class OPT(nn.Module):
         return self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
 
     def forward(self, batch):
+        model = 'opt'
+        if type(self.model) == T5ForConditionalGeneration:
+            model = 't5'
+
         embeddings = batch['embeddings'].to(dtype=self.fp)
         embeddings = embeddings / embeddings.norm(dim=-1, keepdim=True)
 
@@ -70,16 +84,27 @@ class OPT(nn.Module):
             embeddings = embeddings.to(self.device)
 
         prefix_tokens = self.mapper(embeddings).view(-1, self.prefix_length, self.hidden_size)
-        captions_emb = self.get_input_embeds(captions).to(dtype=self.fp)
-        if self.device:
-            captions_emb = captions_emb.to(self.device)
         # print(prefix_tokens.shape, embeddings.shape, captions_emb.shape)
 
-        # [batch, bos + prefix + caption, d_model]
-        input_emb = torch.concat([captions_emb[:, :1, :], prefix_tokens, captions_emb[:, 1:, :]], dim=1).to(self.fp)
-        # print(input_emb.shape)
+        # [batch, sos + prefix + caption, d_model]
+        if model == 'opt':
+            captions_emb = self.get_input_embeds(captions).to(dtype=self.fp)
+            if self.device:
+                captions_emb = captions_emb.to(self.device)
+            input_emb = torch.concat([captions_emb[:, :1, :], prefix_tokens, captions_emb[:, 1:, :]], dim=1).to(self.fp)
+
+        elif model == 't5':
+            sos = torch.ones((prefix_tokens.shape[0], 1), dtype=torch.long)
+            if self.device:
+                sos = sos.to(self.device)
+
+            sos = self.embeddings_layer(sos)
+            # [batch, learned embeds + sos, d_model]
+            input_emb = torch.concat([prefix_tokens, sos], dim=1).to(self.fp)
 
         labels = self.tokenizer(captions, return_tensors="pt", padding=True).input_ids.to(self.fp)
+        labels[labels == self.tokenizer.pad_token_id] = -100
+
         # opt ignores -100 labels during loss computation
         ignore = torch.ones(labels.shape[0], self.prefix_length + 1) * -100
         if self.device:
@@ -132,8 +157,8 @@ def model_from_json(json_file, device):
         config = json.load(f)
     precision = torch.float16 if config['fp'] == 'fp16' else torch.float32
 
-    decoder = OPT(config['model_name'], device, prefix_length=config['prefix_len'], precision=precision,
-                  add_noise=config['text_only'])
+    decoder = Decoder(config['model_name'], device, prefix_length=config['prefix_len'], precision=precision,
+                      add_noise=config['text_only'])
 
     if not config['full_finetune']:
         decoder.lora_model(config['rank'], config['alpha'], config['dropout'])
@@ -144,18 +169,16 @@ def model_from_json(json_file, device):
 
 
 if '__main__' == __name__:
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     dataset = CaptioningDataset('embeddings/coco_openclip_val.pkl')
     loader = dataset.get_loader()
-    model = OPT('facebook/opt-350m', device)
-    # model.lora_model(16, 32, 0.05)
 
-    model.embeddings_layer.to('cuda')
-    size_model = 0
-    for param in model.parameters():
-        if param.data.is_floating_point():
-            size_model += param.numel() * torch.finfo(param.data.dtype).bits
-        else:
-            size_model += param.numel() * torch.iinfo(param.data.dtype).bits
-    print(f"model size: {size_model} / bit | {size_model / 8e6:.2f} / MB")
+    model = model_from_json('experiments/t5-base_openclip_ft.json', device)
+    for batch in loader:
+        model(batch)
+        break
 
+    # tokens = model.tokenizer('teste de ids')
+    # print(tokens)
+    # decoded = model.tokenizer.decode(tokens.input_ids)
+    # print(decoded)

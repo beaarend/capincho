@@ -1,8 +1,9 @@
 import json
 import os.path
 import random
+from util import split_sentence
 from embeddingsDataset import COCODataset
-from decoder import OPT, model_from_json
+from decoder import Decoder, model_from_json
 import torch
 import argparse
 from PIL import Image, ImageFont, ImageDraw
@@ -17,6 +18,8 @@ if __name__ == '__main__':
                         help='experiment path')
     parser.add_argument('--embeddings', type=str, default='embeddings/coco_openCLIP_val.pkl')
     parser.add_argument('--qualitative', action='store_true', help='run qualitative evaluation')
+    parser.add_argument('--random_seed', type=int, default=777, help='random seed for qualitative evaluation')
+    parser.add_argument('--num_images', '-n', type=int, default=10, help='number of images to evaluate')
     args = parser.parse_args()
 
     decoder = model_from_json(args.experiment, device)
@@ -27,20 +30,30 @@ if __name__ == '__main__':
     print('\n Evaluating captioning \n')
     coco = COCO('datasets_torchvision/coco_2017/annotations/captions_val2017.json')
     if args.qualitative:
-        for i in [random.randint(0, len(embeddings)) for i in range(10)]:
+        random.seed(args.random_seed)
+        for i in [random.randint(0, len(embeddings)) for i in range(args.num_images)]:
             input_emb = embeddings[i]['image_embeddings'][0].to(device, dtype=decoder.fp)
-            generated = decoder.caption(input_emb, max_tokens=20, )
+            generated = decoder.caption(input_emb, max_tokens=100, )
             ann_id = coco.getAnnIds(embeddings[i]['image_id'])
             ann = coco.loadAnns(ann_id)
-            text = 'GT: {}\n generated: {}'.format(ann[0]['caption'], generated[0])
+            text_gt = 'GT: {}\n'.format(ann[0]['caption'])
+            text_gen = 'GENERATED: {}\n'.format(generated[0])
 
             image = Image.open('datasets_torchvision/coco_2017/val2017/{}'.format(embeddings[i]['image_name']))
             w, h = image.size[:2]
-            text_board = Image.new('RGB', (w, 50), (255, 255, 255))
-            font = ImageFont.truetype("fonts/ARIAL.TTF", 16)
-            ImageDraw.Draw(text_board).text((1, 1), text, (0, 0, 0), font=font)
+            font = ImageFont.truetype("fonts/Instruction.ttf", 16)
+            lim = int(w / 10)
 
-            dst = Image.new('RGB', (w, h + 60), (255, 255, 255))
+            new_gt = split_sentence(text_gt, lim)
+            new_gen = split_sentence(text_gen, lim)
+            new_text = new_gt + new_gen
+            lines = new_text.count('\n') + 1
+
+            new_h = h + (lines * 18)
+            text_board = Image.new('RGB', (w, new_h - h), (255, 255, 255))
+            ImageDraw.Draw(text_board).multiline_text((1, 1), new_text, (0, 0, 0), font=font)
+
+            dst = Image.new('RGB', (w, new_h), (255, 255, 255))
             dst.paste(image, (0, 0))
             dst.paste(text_board, (0, h))
             dst.save('plots/caption/captions_{}'.format(embeddings[i]['image_name']))

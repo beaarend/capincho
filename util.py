@@ -49,6 +49,27 @@ def learnable_parameters(model):
     print(f'total params: {total / 1e6:.2f}M,  learnable params: {learnable / 1e6:.2f}M')
 
 
+def split_sentence(sentence, limit):
+    assert limit > 0, "split sentence, limit must be greater than 0"
+    from math import ceil
+    lines = ceil(len(sentence) / limit)
+    # print(lines)
+    new_text = ''
+    for i in range(lines):
+        # print(i)
+        delim = (i + 1) * limit
+        ini = i * limit
+        if delim < len(sentence):
+            new_text += sentence[ini:delim] + '\n'
+            # print(sentence[ini:delim])
+        else:
+            new_text += sentence[ini:]
+            # print(sentence[ini:])
+
+    return new_text
+
+
 if __name__ == '__main__':
-    coco_texts()
+    sentence = 'a very long sentence should be placed here but i am too lazy to do it'
+    splited = split_sentence(sentence, int(400/8))
 

@@ -9,7 +9,7 @@ from tqdm import tqdm
 import math
 import matplotlib.pyplot as plt
 import json
-from decoder import OPT
+from decoder import Decoder
 from textLoader import TextLoader
 from torch import nn
 from accelerate import Accelerator
@@ -24,7 +24,7 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # model, data, optimizer
-    decoder = OPT(model_name, device, prefix_length=prefix_len, precision=fp, add_noise=add_noise, variance=variance)
+    decoder = Decoder(model_name, device, prefix_length=prefix_len, precision=fp, add_noise=add_noise, variance=variance)
     if not full_finetune:
         decoder.lora_model(r, alpha, dropout)
         print("Lora model")
