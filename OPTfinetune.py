@@ -3,10 +3,11 @@ import transformers
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import LoraConfig
-from trl import SFTTrainer
+from trl import SFTTrainer, SFTConfig
 from util import model_size, learnable_parameters
 from torch.optim import AdamW
 import os
+import pandas as pd
 import torch
 import glob
 
@@ -14,7 +15,7 @@ import glob
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', type=str, default='facebook/opt-350m')
-    parser.add_argument('--dataset', type=str, default='textDatasets/publico-COMPLETO.txt')
+    parser.add_argument('--dataset', type=str, default='textDatasets/shuffled-petroles.txt')
     parser.add_argument('--lr', type=float, default=2e-4)
     parser.add_argument('--epochs', type=int, default=1)
     parser.add_argument('--output_dir', type=str, default='logs')
@@ -41,9 +42,17 @@ if __name__ == '__main__':
         check_path = f'{args.output_dir}/checkpoint-{last_step}'
 
     tokenizer = AutoTokenizer.from_pretrained(args.model, )
-    data = load_dataset('text', data_files=args.dataset, encoding='utf8', cache_dir=args.output_dir)
-    data = data.map(batched=True)
-    # lambda sample: tokenizer(sample['text'], truncation=True, max_length=512),
+
+    # shuffle data
+    # with open(args.dataset, 'r') as f:
+    #     df = pd.DataFrame.from_dict({'text': f.readlines()})
+    #     df.sample(frac=1).reset_index(drop=True)
+    #     with open('textDatasets/shuffled-petroles.txt', 'w') as f:
+    #         f.writelines(df['text'].values)
+
+    test_data = load_dataset('text', data_files=args.dataset, encoding='utf8', cache_dir=args.output_dir, split='train[:10%]')
+    train_data = load_dataset('text', data_files=args.dataset, encoding='utf8', cache_dir=args.output_dir, split='train[10%:]')
+
     config = LoraConfig(
         r=args.rank,
         lora_alpha=args.alpha,
@@ -51,31 +60,32 @@ if __name__ == '__main__':
         bias="none",
         task_type="CAUSAL_LM",
     )
-
+    trainArgs = SFTConfig(
+        fp16=args.fp16,
+        logging_steps=5000,
+        logging_strategy='steps',
+        learning_rate=args.lr,
+        output_dir=args.output_dir,
+        save_strategy='steps',
+        save_steps=10000,
+        per_device_train_batch_size=args.batch_size,
+        gradient_accumulation_steps=args.accumulate_grad_steps,
+        num_train_epochs=args.epochs,
+        overwrite_output_dir=True,
+        resume_from_checkpoint=check_path if args.resume else False,
+        save_total_limit=10,
+    )
     trainer = SFTTrainer(
         args.model,
-        train_dataset=data['train'],
+        train_dataset=train_data,
+        eval_dataset=test_data,
         dataset_text_field="text",
         peft_config=config,
-        args=transformers.TrainingArguments(
-            fp16=args.fp16,
-            logging_steps=5000,
-            logging_strategy='steps',
-            learning_rate=args.lr,
-            output_dir=args.output_dir,
-            save_strategy='steps',
-            save_steps=10000,
-            per_device_train_batch_size=args.batch_size,
-            gradient_accumulation_steps=args.accumulate_grad_steps,
-            num_train_epochs=args.epochs,
-            overwrite_output_dir=True,
-            resume_from_checkpoint=check_path if args.resume else False,
-            save_total_limit=10,
-        )
+        args=trainArgs,
     )
     model_size(trainer.model)
     learnable_parameters(trainer.model)
 
     trainer.train(resume_from_checkpoint=args.resume)
     trainer.save_model(args.save_dir)
-
+    #
