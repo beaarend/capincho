@@ -1,3 +1,5 @@
+import glob
+
 import pandas as pd
 import pickle
 import clip
@@ -114,5 +116,7 @@ def generate_dummy_texts(n=36):
 
 
 if __name__ == '__main__':
-    generate_dummy_texts()
+    for file in glob.glob('textDatasets/*'):
+        with open(file, 'r') as f:
+            print(f'{file} size: {len(f.readlines())}')
 

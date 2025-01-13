@@ -8,17 +8,28 @@ import numpy as np
 
 
 class TextLoader(Dataset):
-    def __init__(self, data_path, has_embeddings=False, ):
+    def __init__(self, data_path, has_embeddings=False, split='train'):
+
         if not has_embeddings:
             data = pd.read_excel(data_path)
+            lim = int(0.9 * len(data))
+            if split == 'train':
+                data = data[:lim]
+            elif split == 'val':
+                data = data[lim:]
             self.texts = data['texts']
         else:
             with open(data_path, 'rb') as f:
                 data = pickle.load(f)
+            lim = int(0.9 * len(data['embeddings']))
+            print(f'LEN: {lim}')
+            if split == 'train':
+                self.embeddings = data['embeddings'][:lim]
+                self.texts = data['captions'][:lim]
 
-            self.embeddings = data['embeddings']
-            self.texts = data['captions']
-
+            if split == 'val':
+                self.embeddings = data['embeddings'][lim:]
+                self.texts = data['captions'][lim:]
         self.has_embeddings = has_embeddings
 
     def __len__(self):

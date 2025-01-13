@@ -1,11 +1,9 @@
 import argparse
-import transformers
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import LoraConfig
 from trl import SFTTrainer, SFTConfig
 from util import model_size, learnable_parameters
-from torch.optim import AdamW
 import os
 import pandas as pd
 import torch
@@ -64,6 +62,7 @@ if __name__ == '__main__':
         fp16=args.fp16,
         logging_steps=5000,
         logging_strategy='steps',
+        evaluation_strategy='steps',
         learning_rate=args.lr,
         output_dir=args.output_dir,
         save_strategy='steps',
@@ -74,6 +73,7 @@ if __name__ == '__main__':
         overwrite_output_dir=True,
         resume_from_checkpoint=check_path if args.resume else False,
         save_total_limit=10,
+        ddp_find_unused_parameters=False,
     )
     trainer = SFTTrainer(
         args.model,

@@ -2,26 +2,21 @@ import argparse
 import pickle
 import time
 import torch
-from torch.optim import lr_scheduler
 from transformers import AdamW, get_linear_schedule_with_warmup
 from captioningDataset import CaptioningDataset
 from tqdm import tqdm
-import math
 import matplotlib.pyplot as plt
 import json
 from decoder import Decoder
 from textLoader import TextLoader
-from torch import nn
-from accelerate import Accelerator
+from util import model_size, learnable_parameters
 
 
 def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefix_len, fp, output_name, text_only,
           full_finetune, schedule, add_noise, variance, save_history, dataset, accelerate):
 
     # let accelerator handle devices
-    device = None
-    if not accelerate:
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # model, data, optimizer
     decoder = Decoder(model_name, device, prefix_length=prefix_len, precision=fp, add_noise=add_noise, variance=variance)
@@ -31,35 +26,36 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
 
     optim = AdamW(decoder.parameters(), lr=lr)
 
-    if dataset == 'coco':
-        data = CaptioningDataset(f'embeddings/{filename}', text_only)
-    else:
-        data = TextLoader(f'embeddings/{filename}', has_embeddings=True)
+    model_size(decoder)
+    learnable_parameters(decoder)
 
-    loader = data.get_loader(batch_size=batch_size)
+    if dataset == 'coco':
+        train_data = CaptioningDataset(f'embeddings/{filename}', text_only)
+        val_name = filename.replace('train', 'val')
+        val_data = CaptioningDataset(f'embeddings/{val_name}', text_only)
+    else:
+        train_data = TextLoader(f'embeddings/{filename}', has_embeddings=True, split='train')
+        val_data = TextLoader(f'embeddings/{filename}', has_embeddings=True, split='val')
+
+    train_loader = train_data.get_loader(batch_size=batch_size)
+    val_loader = val_data.get_loader(batch_size=batch_size)
     scheduler = None
-    accelerator = None
-    # accelerate prepare
-    if torch.cuda.device_count() > 1:
-        accelerator = Accelerator()
-        decoder.model, decoder.mapper, optim, loader = accelerator.prepare(decoder.model, decoder.mapper, optim, loader)
 
     if schedule:
         scheduler = get_linear_schedule_with_warmup(optim, num_warmup_steps=10,
-                                                    num_training_steps=epochs * len(loader))
+                                                    num_training_steps=epochs * len(train_loader))
 
     save_path = f'checkpoints/caption/{output_name}.pt'
-    avg_losses = []
+    training_losses = []
+    validation_losses = []
+
     # training loop
     for epoch in range(epochs):
         epoch_loss = []
-        for batch in tqdm(loader):
+        for batch in tqdm(train_loader):
             optim.zero_grad()
             output = decoder(batch)
-            if accelerator:
-                accelerator.backward(output.loss)
-            else:
-                output.loss.backward()
+            output.loss.backward()
 
             optim.step()
             if schedule:
@@ -73,7 +69,14 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
                       'optimizer_state_dict': optim.state_dict(),
                       'loss': epoch_loss[-1]
                       }
-        avg_losses.append(sum(epoch_loss) / len(epoch_loss))
+        training_losses.append(sum(epoch_loss) / len(epoch_loss))
+
+        # validation
+        epoch_val_losses = []
+        for batch in val_loader:
+            output = decoder(batch)
+            epoch_val_losses.append(output.loss.detach().cpu().item())
+        validation_losses.append(sum(epoch_val_losses) / len(epoch_val_losses))
 
         if save_history:
             path = save_path.split('.')[0]
@@ -85,14 +88,15 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
         print(f'saved model epoch {epoch + 1}')
         time.sleep(1)
 
-    plt.plot(range(len(avg_losses)), avg_losses, label='loss')
+    plt.plot(range(len(training_losses)), training_losses, label='training')
+    plt.plot(range(len(validation_losses)), validation_losses, label='validation')
     plt.xlabel('epoch')
     plt.ylabel('loss')
     plt.title(f'training {output_name}')
     plt.savefig(f'plots/experiment_training/{output_name}.png')
 
     plt.clf()
-    log = {'training_loss': avg_losses, 'validation_loss': []}
+    log = {'training_loss': training_losses, 'validation_loss': validation_losses}
     with open(f'loss/{output_name}.pkl', 'wb') as f:
         pickle.dump(log, f)
 
