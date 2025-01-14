@@ -91,6 +91,9 @@ class Decoder(nn.Module):
             captions_emb = self.get_input_embeds(captions).to(dtype=self.fp)
             if self.device:
                 captions_emb = captions_emb.to(self.device)
+            if len(captions_emb.shape) == 2:
+                captions_emb = captions_emb.unsqueeze(0)
+            # print(captions_emb.shape, prefix_tokens.shape)
             input_emb = torch.concat([captions_emb[:, :1, :], prefix_tokens, captions_emb[:, 1:, :]], dim=1).to(self.fp)
 
         elif model == 't5':

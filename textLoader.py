@@ -22,7 +22,7 @@ class TextLoader(Dataset):
             with open(data_path, 'rb') as f:
                 data = pickle.load(f)
             lim = int(0.9 * len(data['embeddings']))
-            print(f'LEN: {lim}')
+            # print(f'LEN: {lim}')
             if split == 'train':
                 self.embeddings = data['embeddings'][:lim]
                 self.texts = data['captions'][:lim]

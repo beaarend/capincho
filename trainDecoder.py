@@ -88,17 +88,18 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
         print(f'saved model epoch {epoch + 1}')
         time.sleep(1)
 
-    plt.plot(range(len(training_losses)), training_losses, label='training')
-    plt.plot(range(len(validation_losses)), validation_losses, label='validation')
-    plt.xlabel('epoch')
-    plt.ylabel('loss')
-    plt.title(f'training {output_name}')
-    plt.savefig(f'plots/experiment_training/{output_name}.png')
+        # logging and plotting
+        plt.plot(range(len(training_losses)), training_losses, label='training')
+        plt.plot(range(len(validation_losses)), validation_losses, label='validation')
+        plt.xlabel('epoch')
+        plt.ylabel('loss')
+        plt.title(f'training {output_name}')
+        plt.savefig(f'plots/experiment_training/{output_name}.png')
 
-    plt.clf()
-    log = {'training_loss': training_losses, 'validation_loss': validation_losses}
-    with open(f'loss/{output_name}.pkl', 'wb') as f:
-        pickle.dump(log, f)
+        plt.clf()
+        log = {'training_loss': training_losses, 'validation_loss': validation_losses}
+        with open(f'loss/{output_name}.pkl', 'wb') as f:
+            pickle.dump(log, f)
 
 
 if __name__ == '__main__':

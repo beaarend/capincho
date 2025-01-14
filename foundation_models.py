@@ -2,12 +2,20 @@ import torch
 from PIL import Image
 from abc import ABC, abstractmethod
 import clip
+from huggingface_hub import hf_hub_download
 
 try:
     import open_clip
 except ImportError:
-    print('Opening clip not available')
+    print('Open CLIP not available')
 
+try:
+    from capivara.src.models.open_CLIP import OpenCLIP
+    from capivara.src.models.open_CLIP_adapter import OpenCLIPAdapter
+    from capivara.src.models.open_clip_wrapper import OpenCLIPWrapper
+    from capivara.src.utils.capivara_utils import download_pretrained_from_hf
+except ImportError:
+    print('Capivara not available')
 
 class Model(ABC):
     def __init__(self, device):
@@ -73,6 +81,22 @@ class OpenCoCa(Model):
         self.language_preprocess = open_clip.get_tokenizer('ViT-L-14')
 
 
+class Capivara(Model):
+    def visual_embedding(self, image_path):
+        image = Image.open(image_path).convert("RGB")
+        img = self.backbone.image_preprocessor(image).unsqueeze(0).to(self.device)
+        return self.backbone.encode_visual(img)
+
+    def language_embedding(self, text):
+        tokens = self.backbone.text_tokenizer(text)
+        return self.backbone.encode_text(tokens.to(self.device))
+
+    def load_model(self):
+        model_path = download_pretrained_from_hf(model_id="hiaac-nlp/CAPIVARA")
+        self.backbone = OpenCLIPWrapper.load_from_checkpoint(model_path, strict=False).model
+        self.backbone = self.backbone.to(self.device)
+
+
 class OpenCLIP(Model):
     def visual_embedding(self, image_path):
         image = Image.open(image_path).convert("RGB")
@@ -93,13 +117,11 @@ class OpenCLIP(Model):
 
 
 if __name__ == "__main__":
-    list = open_clip.list_pretrained()
-    for i in list:
-        if "ViT-H" in i[0]:
-            print(i)
+    from captioningDataset import CaptioningDataset
+    model = Capivara(device="cuda:0")
+    model.load_model()
 
-
-    # (model_name='ViT-H-14', pretrained='laion2b_s32b_b79k', device='cuda:0')
-    # (model_name='ViT-g-14', pretrained='laion2b_s34b_b88k', device='cuda:0')
-
-
+    emb = model.language_embedding('texto de texto de texto de texto de')
+    print(emb.shape)
+    emb = model.visual_embedding('./coco retrieval one.png')
+    print(emb.shape)

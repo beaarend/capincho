@@ -19,6 +19,7 @@ embeddings/*
 descricoes.xlsx
 *.png
 *.xlsx
+capivara
 *.pkl
 evaluateCaptioning.py
 logs

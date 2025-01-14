@@ -18,7 +18,8 @@ if __name__ == '__main__':
 
     model_dict = {'coca': foundation_models.OpenCoCa,
                   'clip': foundation_models.CLIP,
-                  'openclip': foundation_models.OpenCLIP}
+                  'openclip': foundation_models.OpenCLIP,
+                  'capivara': foundation_models.Capivara}
 
     model = model_dict[args.model](device)
     model.load_model()
