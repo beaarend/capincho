@@ -10,7 +10,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('-e', '--embeddings', type=str, default='embeddings/textEmbeddings.pkl', required=True,
                         help='path to embeddings file')
-    parser.add_argument('-m', '--model', type=str, default='experiments/checkpoint.pt', required=True,
+    parser.add_argument('-m', '--model', type=str, default='experiments/checkpoint.json', required=True,
                         help='path to the saved model')
     parser.add_argument('--random_seed', type=int, default=777, help='random seed for qualitative evaluation')
     parser.add_argument('--num_images', '-n', type=int, default=10, help='number of images to evaluate')

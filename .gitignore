@@ -27,3 +27,5 @@ config.yaml
 textDatasets
 opt.yaml
 configs
+gapAnalysis
+test

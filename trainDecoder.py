@@ -7,13 +7,14 @@ from captioningDataset import CaptioningDataset
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import json
+import os
 from decoder import Decoder
 from textLoader import TextLoader
 from util import model_size, learnable_parameters
 
 
 def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefix_len, fp, output_name, text_only,
-          full_finetune, schedule, add_noise, variance, save_history, dataset, accelerate):
+          full_finetune, schedule, add_noise, variance, save_history, dataset, root):
 
     # let accelerator handle devices
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -45,7 +46,7 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
         scheduler = get_linear_schedule_with_warmup(optim, num_warmup_steps=10,
                                                     num_training_steps=epochs * len(train_loader))
 
-    save_path = f'checkpoints/caption/{output_name}.pt'
+    save_path = f'{root}/{output_name}.pt'
     training_losses = []
     validation_losses = []
 
@@ -88,17 +89,17 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
         print(f'saved model epoch {epoch + 1}')
         time.sleep(1)
 
-        # logging and plotting
         plt.plot(range(len(training_losses)), training_losses, label='training')
         plt.plot(range(len(validation_losses)), validation_losses, label='validation')
+        plt.legend()
         plt.xlabel('epoch')
         plt.ylabel('loss')
         plt.title(f'training {output_name}')
-        plt.savefig(f'plots/experiment_training/{output_name}.png')
+        plt.savefig(f'{root}/{output_name}_plot.png')
 
         plt.clf()
         log = {'training_loss': training_losses, 'validation_loss': validation_losses}
-        with open(f'loss/{output_name}.pkl', 'wb') as f:
+        with open(f'{root}/{output_name}_loss.pkl', 'wb') as f:
             pickle.dump(log, f)
 
 
@@ -122,15 +123,18 @@ if __name__ == '__main__':
     parser.add_argument('--variance', type=float, help='variance for noise injection', default=0.016)
     parser.add_argument('--history', action='store_true', help='save epoch history', default=False)
     parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'geo', 'cxr'], help='dataset name')
-    parser.add_argument('--accelerate', action='store_true', help='use accelerate', default=False)
+    parser.add_argument('--root', default='/nethome/recpinfo/users/fibz/data/', help='root dir for saving results')
     args = parser.parse_args()
 
     precision = torch.float16 if args.fp == 'fp16' else torch.float32
     train(args.epochs, args.batch_size, args.lr, args.embeddings, args.rank, args.alpha, args.dropout,
           args.model_name, args.prefix_len, precision, args.output, args.text_only, args.full_finetune, args.schedule,
-          args.noise, args.variance, args.history, args.dataset, args.accelerate)
+          args.noise, args.variance, args.history, args.dataset, args.root)
 
+    if not os.path.exists(args.root):
+        os.makedirs(args.root)
+        print(f'folders created: {args.root}')
     result_dict = args.__dict__
-    result_dict['checkpoint_path'] = f'checkpoints/caption/{args.output}.pt'
-    with open(f'experiments/{args.output}.json', 'w') as f:
+    result_dict['checkpoint_path'] = f'{args.output}.pt'
+    with open(f'{args.root}/{args.output}_args.json', 'w') as f:
         json.dump(result_dict, f, indent=2)
