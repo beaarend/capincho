@@ -109,7 +109,7 @@ class OpenCLIP(Model):
 
     def load_model(self):
         self.backbone, _, self.vision_preprocess = open_clip.create_model_and_transforms(
-            model_name="ViT-G-14",
+            model_name="ViT-L-14",
             pretrained="laion2b_s32b_b82k",
             device=self.device
         )
@@ -118,10 +118,13 @@ class OpenCLIP(Model):
 
 if __name__ == "__main__":
     from captioningDataset import CaptioningDataset
-    model = Capivara(device="cuda:0")
-    model.load_model()
-
-    emb = model.language_embedding('texto de texto de texto de texto de')
-    print(emb.shape)
-    emb = model.visual_embedding('./coco retrieval one.png')
-    print(emb.shape)
+    # model = Capivara(device="cuda:0")
+    # model.load_model()
+    #
+    # emb = model.language_embedding('texto de texto de texto de texto de')
+    # print(emb.shape)
+    # emb = model.visual_embedding('./coco retrieval one.png')
+    # print(emb.shape)
+    for i in open_clip.list_pretrained():
+        if 'L' in i[0]:
+            print(i)

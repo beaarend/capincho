@@ -13,14 +13,18 @@ from textLoader import TextLoader
 from util import model_size, learnable_parameters
 
 
-def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefix_len, fp, output_name, text_only,
-          full_finetune, schedule, add_noise, variance, save_history, dataset, root):
+def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefix_len, fp, text_only,
+          full_finetune, schedule, add_noise, variance, save_history, dataset, root, dimension):
 
-    # let accelerator handle devices
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # model, data, optimizer
-    decoder = Decoder(model_name, device, prefix_length=prefix_len, precision=fp, add_noise=add_noise, variance=variance)
+    decoder = Decoder(model_name, device,
+                      prefix_length=prefix_len,
+                      precision=fp,
+                      add_noise=add_noise,
+                      variance=variance,
+                      dimension=dimension)
     if not full_finetune:
         decoder.lora_model(r, alpha, dropout)
         print("Lora model")
@@ -31,12 +35,12 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
     learnable_parameters(decoder)
 
     if dataset == 'coco':
-        train_data = CaptioningDataset(f'embeddings/{filename}', text_only)
+        train_data = CaptioningDataset(f'{filename}', text_only)
         val_name = filename.replace('train', 'val')
-        val_data = CaptioningDataset(f'embeddings/{val_name}', text_only)
+        val_data = CaptioningDataset(f'{val_name}', text_only)
     else:
-        train_data = TextLoader(f'embeddings/{filename}', has_embeddings=True, split='train')
-        val_data = TextLoader(f'embeddings/{filename}', has_embeddings=True, split='val')
+        train_data = TextLoader(f'{filename}', has_embeddings=True, split='train')
+        val_data = TextLoader(f'{filename}', has_embeddings=True, split='val')
 
     train_loader = train_data.get_loader(batch_size=batch_size)
     val_loader = val_data.get_loader(batch_size=batch_size)
@@ -46,7 +50,7 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
         scheduler = get_linear_schedule_with_warmup(optim, num_warmup_steps=10,
                                                     num_training_steps=epochs * len(train_loader))
 
-    save_path = f'{root}/{output_name}.pt'
+    save_path = os.path.join(args.save_path, 'checkpoint.pt')
     training_losses = []
     validation_losses = []
 
@@ -94,12 +98,12 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
         plt.legend()
         plt.xlabel('epoch')
         plt.ylabel('loss')
-        plt.title(f'training {output_name}')
-        plt.savefig(f'{root}/{output_name}_plot.png')
+        plt.title(f'training loss')
+        plt.savefig(f'{root}/loss_plot.png')
 
         plt.clf()
         log = {'training_loss': training_losses, 'validation_loss': validation_losses}
-        with open(f'{root}/{output_name}_loss.pkl', 'wb') as f:
+        with open(f'{root}/loss_log.pkl', 'wb') as f:
             pickle.dump(log, f)
 
 
@@ -115,7 +119,6 @@ if __name__ == '__main__':
     parser.add_argument('--model_name', type=str, default="facebook/opt-350m", help='OPT model name')
     parser.add_argument('--prefix-len', type=int, default=10, help='model prefix length')
     parser.add_argument('--fp', choices=['fp16', 'fp32'], default='fp32', help='float precision')
-    parser.add_argument('--output', type=str, default='opt350m-coco', help='output file basename no extension')
     parser.add_argument('--text_only', action='store_true', help='train using text only')
     parser.add_argument('--full_finetune', action='store_true', help='fine tune entire model', default=False)
     parser.add_argument('--schedule', action='store_true', help='use linear scheduler', default=False)
@@ -123,18 +126,20 @@ if __name__ == '__main__':
     parser.add_argument('--variance', type=float, help='variance for noise injection', default=0.016)
     parser.add_argument('--history', action='store_true', help='save epoch history', default=False)
     parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'geo', 'cxr'], help='dataset name')
-    parser.add_argument('--root', default='/nethome/recpinfo/users/fibz/data/', help='root dir for saving results')
+    parser.add_argument('--save_path', default='/nethome/recpinfo/users/fibz/data/', help='root dir for saving results')
+    parser.add_argument('--dimension', default=768, type=int, help='embedding dimension')
     args = parser.parse_args()
+
+    if not os.path.exists(args.save_path):
+        os.makedirs(args.save_path)
+        print(f'folders created: {args.save_path}')
 
     precision = torch.float16 if args.fp == 'fp16' else torch.float32
     train(args.epochs, args.batch_size, args.lr, args.embeddings, args.rank, args.alpha, args.dropout,
-          args.model_name, args.prefix_len, precision, args.output, args.text_only, args.full_finetune, args.schedule,
-          args.noise, args.variance, args.history, args.dataset, args.root)
+          args.model_name, args.prefix_len, precision, args.text_only, args.full_finetune, args.schedule,
+          args.noise, args.variance, args.history, args.dataset, args.save_path, args.dimension)
 
-    if not os.path.exists(args.root):
-        os.makedirs(args.root)
-        print(f'folders created: {args.root}')
     result_dict = args.__dict__
-    result_dict['checkpoint_path'] = f'{args.output}.pt'
-    with open(f'{args.root}/{args.output}_args.json', 'w') as f:
+    result_dict['checkpoint_path'] = os.path.join(args.save_path, 'checkpoint.pt')
+    with open(f'{args.save_path}/experiment.json', 'w') as f:
         json.dump(result_dict, f, indent=2)

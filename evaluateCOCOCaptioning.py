@@ -19,7 +19,9 @@ if __name__ == '__main__':
     parser.add_argument('--embeddings', type=str, default='embeddings/coco_openCLIP_val.pkl')
     parser.add_argument('--qualitative', action='store_true', help='run qualitative evaluation')
     parser.add_argument('--random_seed', type=int, default=777, help='random seed for qualitative evaluation')
-    parser.add_argument('--num_images', '-n', type=int, default=10, help='number of images to evaluate')
+    parser.add_argument('--num_images', '-n', type=int, default=10,
+                        help='number of images to evaluate in qualitative evaluation')
+    parser.add_argument('--load_results', action='store_true', help='load saved results')
     args = parser.parse_args()
 
     decoder = model_from_json(args.experiment, device)
@@ -59,9 +61,9 @@ if __name__ == '__main__':
             dst.save('plots/caption/captions_{}'.format(embeddings[i]['image_name']))
 
     else:
-        name = os.path.basename(args.experiment)
-        if not os.path.exists(f'results/{name}'):
-            print(f'generating captions, results/{name}')
+        name = os.path.join(os.path.dirname(args.experiment), 'generated.json')
+        if not args.load_results:
+            print(f'generating captions at {name}')
             data = embeddings[:]
             captions = [decoder.caption(torch.tensor(e, dtype=decoder.fp, device=device).squeeze(0))[0] for e in tqdm(data['image_embeddings'], total=len(data['image_embeddings']))]
             results = []
@@ -69,12 +71,13 @@ if __name__ == '__main__':
             for i in range(len(captions)):
                 results.append({'image_id': embeddings[i]['image_id'], 'caption': captions[i]})
 
-            with open(f'results/{name}', 'w') as f:
+            with open(name, 'w') as f:
                 json.dump(results, f, indent=2)
         else:
+            assert os.path.isfile(name), f'{name} does not exist'
             print(f'loading results from {name}')
 
-        res = coco.loadRes(f'results/{name}')
+        res = coco.loadRes(name)
         coco_eval = COCOEvalCap(coco, res)
         coco_eval.evaluate()
 
@@ -82,12 +85,10 @@ if __name__ == '__main__':
         for metric, score in coco_eval.eval.items():
             experiment_result[metric] = score
 
-        with open('results/experiment_result.json', 'r') as f:
-            json_dict = json.load(f)
-            json_dict[f'{name}'] = experiment_result
+        with open(os.path.join(os.path.dirname(args.experiment), 'evaluation.json'), 'w') as f:
+            json.dump(experiment_result, f, indent=2)
 
-        with open(f'results/experiment_result.json', 'w') as f:
-            json.dump(json_dict, f, indent=2)
+
 
 
 

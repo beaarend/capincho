@@ -1,15 +1,17 @@
+import os.path
 
-def plot_curves(training, validation, output_name, type):
+
+def plot_curves(training, validation, output_name):
     import matplotlib.pyplot as plt
-    plt.plot(training, label=f'training {type}')
-    plt.plot(validation, label=f'validation {type}')
+    plt.plot(training, label=f'training loss')
+    plt.plot(validation, label=f'validation loss')
 
     plt.text(len(training), training[-1], f'{training[-1]:.3}')
     plt.text(len(validation), validation[-1], f'{validation[-1]:.3}')
 
-    plt.title(f'{type} curves {output_name}')
+    plt.title(f'training loss')
     plt.legend()
-    plt.savefig(f'plots/experiment training/{output_name}')
+    plt.savefig(output_name)
     plt.clf()
 
 

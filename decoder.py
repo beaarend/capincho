@@ -14,7 +14,8 @@ except ImportError:
 
 
 class Decoder(nn.Module):
-    def __init__(self, model_name, device, precision=torch.float16, prefix_length=10, add_noise=True, variance=0.016):
+    def __init__(self, model_name, device, precision=torch.float16, prefix_length=10, add_noise=True, variance=0.016,
+                 dimension=768):
         super(Decoder, self).__init__()
         self.device = device
         if 'opt' in model_name:
@@ -34,7 +35,7 @@ class Decoder(nn.Module):
         self.hidden_size = self._get_hidden_size()
         self.prefix_length = prefix_length
         self.fp = precision
-        self.mapper = Mapper(768, self.hidden_size, self.prefix_length).to(dtype=precision)
+        self.mapper = Mapper(dimension, self.hidden_size, self.prefix_length).to(dtype=precision)
 
         if self.device:
             self.model.to(self.device)
@@ -97,13 +98,13 @@ class Decoder(nn.Module):
             input_emb = torch.concat([captions_emb[:, :1, :], prefix_tokens, captions_emb[:, 1:, :]], dim=1).to(self.fp)
 
         elif model == 't5':
-            sos = torch.ones((prefix_tokens.shape[0], 1), dtype=torch.long)
+            eos = torch.ones((prefix_tokens.shape[0], 1), dtype=torch.long)
             if self.device:
-                sos = sos.to(self.device)
+                eos = eos.to(self.device)
 
-            sos = self.embeddings_layer(sos)
+            eos = self.embeddings_layer(eos)
             # [batch, learned embeds + sos, d_model]
-            input_emb = torch.concat([prefix_tokens, sos], dim=1).to(self.fp)
+            input_emb = torch.concat([prefix_tokens, eos], dim=1).to(self.fp)
 
         labels = self.tokenizer(captions, return_tensors="pt", padding=True).input_ids.to(self.fp)
         labels[labels == self.tokenizer.pad_token_id] = -100
@@ -161,7 +162,7 @@ def model_from_json(json_file, device):
     precision = torch.float16 if config['fp'] == 'fp16' else torch.float32
 
     decoder = Decoder(config['model_name'], device, prefix_length=config['prefix_len'], precision=precision,
-                      add_noise=config['text_only'])
+                      add_noise=config['text_only'], dimension=config['dimension'])
 
     if not config['full_finetune']:
         decoder.lora_model(config['rank'], config['alpha'], config['dropout'])
