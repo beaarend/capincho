@@ -1,5 +1,6 @@
 import os.path
 
+dataset_path = "/mnt/d/new_data/"
 
 def plot_curves(training, validation, output_name):
     import matplotlib.pyplot as plt

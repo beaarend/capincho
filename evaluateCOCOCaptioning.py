@@ -11,6 +11,8 @@ from tqdm import tqdm
 from pycocotools.coco import COCO
 from pycocoevalcap.eval import COCOEvalCap
 
+from util import dataset_path
+
 if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "")
     parser = argparse.ArgumentParser()
@@ -30,7 +32,10 @@ if __name__ == '__main__':
     embeddings = COCODataset(path=args.embeddings, n_captions=1)
 
     print('\n Evaluating captioning \n')
-    coco = COCO('datasets_torchvision/coco_2017/annotations/captions_val2017.json')
+    #coco = COCO('datasets_torchvision/coco_2017/annotations/captions_val2017.json')
+
+    coco = COCO(os.path.join(dataset_path, 'COCO', 'annotations', 'captions_val2017.json'))
+
     if args.qualitative:
         random.seed(args.random_seed)
         for i in [random.randint(0, len(embeddings)) for i in range(args.num_images)]:
@@ -41,7 +46,9 @@ if __name__ == '__main__':
             text_gt = 'GT: {}\n'.format(ann[0]['caption'])
             text_gen = 'GENERATED: {}\n'.format(generated[0])
 
-            image = Image.open('datasets_torchvision/coco_2017/val2017/{}'.format(embeddings[i]['image_name']))
+            #image = Image.open('datasets_torchvision/coco_2017/val2017/{}'.format(embeddings[i]['image_name']))
+            image = Image.open(dataset_path + '/COCO/val2017/{}'.format(embeddings[i]['image_name']))
+
             w, h = image.size[:2]
             font = ImageFont.truetype("fonts/Instruction.ttf", 16)
             lim = int(w / 10)

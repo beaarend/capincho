@@ -5,6 +5,7 @@ from torch.utils.data import Dataset
 from pycocotools.coco import COCO
 import torch
 
+from util import dataset_path
 
 class CaptioningDataset(Dataset):
     def __init__(self, embeddings_path, text_only=True):
@@ -16,9 +17,12 @@ class CaptioningDataset(Dataset):
 
         # captions
         if 'val' in embeddings_path:
-            coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_val2017.json')
+            #coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_val2017.json')
+            coco = COCO(f'{dataset_path}/COCO/annotations/captions_val2017.json')
+
         else:
-            coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_train2017.json')
+            #coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_train2017.json')
+            coco = COCO(f'{dataset_path}/COCO/annotations/captions_train2017.json')
 
         for embed in embeddings['image_id']:
             ann = coco.loadAnns(coco.getAnnIds(embed))

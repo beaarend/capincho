@@ -5,9 +5,9 @@ from pycocotools.coco import COCO
 from tqdm import tqdm
 import pickle
 import foundation_models
+from util import dataset_path
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -24,7 +24,10 @@ if __name__ == '__main__':
     model = model_dict[args.model](device)
     model.load_model()
     model.backbone.eval()
-    coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_{args.split}2017.json')
+
+    #coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_{args.split}2017.json')
+    coco = COCO(os.path.join(dataset_path, 'COCO', 'annotations', f'captions_{args.split}2017.json'))
+
     ids = coco.getImgIds()
     imgs = coco.loadImgs(ids)
 
@@ -33,8 +36,10 @@ if __name__ == '__main__':
         data['image_name'].append(image['file_name'])
 
         data['image_id'].append(ids[i])
-        img_embeds = model.visual_embedding('datasets_torchvision/coco_2017/{}2017/{}'.format(args.split,
-                                                                                              image['file_name']))
+        # img_embeds = model.visual_embedding('datasets_torchvision/coco_2017/{}2017/{}'.format(args.split,
+        #                                                                                       image['file_name']))
+        img_embeds = model.visual_embedding(os.path.join(dataset_path, 'COCO', f'{args.split}2017', image['file_name']))
+        
         data['image_embeddings'].append(img_embeds.detach().cpu())
 
         ann = coco.loadAnns(coco.getAnnIds(ids[i]))
