@@ -1,6 +1,8 @@
 #  ------------------------------------------------------------------------------------------
 #  This code is reconstructed based on loralib (https://github.com/microsoft/LoRA) by Baijiong Lin.
+#  This code was made originally for CLIP-LoRA (https://github.com/MaxZanella/CLIP-LoRA) by Max Zanella.
 #  ------------------------------------------------------------------------------------------
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
