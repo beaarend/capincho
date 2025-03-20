@@ -10,6 +10,10 @@ from util import dataset_path
 class CaptioningDataset(Dataset):
     def __init__(self, embeddings_path, text_only=True):
         self.text_only = text_only
+
+        print("PRINTANDO EMBEDDINGS PATH")
+        print(embeddings_path)
+        
         with open(embeddings_path, 'rb') as f:
             embeddings = pickle.load(f)
         self.embeddings = []
@@ -67,7 +71,8 @@ class CaptioningDataset(Dataset):
 
 
 if __name__ == '__main__':
-    dataset = CaptioningDataset(f'embeddings/coco_openclip_train.pkl', text_only=True)
+    #dataset = CaptioningDataset(f'embeddings/coco_openclip_train.pkl', text_only=True)
+    dataset = CaptioningDataset(f'embeddings/coco_train.pkl', text_only=False)
     # print(len(dataset))
     # print(dataset[:]['embeddings'])
     # print(dataset['embeddings'])

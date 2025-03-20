@@ -9,6 +9,8 @@ from util import dataset_path
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+from peft import get_peft_model, LoraConfig
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--split', choices=['train', 'val'], default='train', help='split to use')

@@ -37,7 +37,6 @@ class ContrastiveResidualAdapter(nn.Module):
         self.eval()
         return self.textAdapter(embeddings.to(device, torch.float32))
 
-
     def train_epoch(self, train_loader, optim):
         self.train()
         epoch_losses = []

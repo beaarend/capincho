@@ -146,6 +146,26 @@ def apply_lora(args, clip_model):
                         list_lora_layers.append(new_multi_head_lora)
     return list_lora_layers
 
+def get_lora_parameters(model, bias='none'):
+    params = []
+    for name, param in model.named_parameters():
+        if bias == 'none':
+            if 'lora_' in name:
+                params.append(param)
+        elif bias == 'all':
+            if 'lora_' in name or 'bias' in name:
+                params.append(param)
+        elif bias == 'lora_only':
+            if 'lora_' in name:
+                params.append(param)
+                bias_name = name.split('lora_')[0] + 'bias'
+                if bias_name in model.state_dict():
+                    bias_param = dict(model.named_parameters())[bias_name]
+                    params.append(bias_param)
+        else:
+            raise NotImplementedError
+    return params
+
 if __name__ == '__main__':
     sentence = 'a very long sentence should be placed here but i am too lazy to do it'
     splited = split_sentence(sentence, int(400/8))

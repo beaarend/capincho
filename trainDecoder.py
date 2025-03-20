@@ -112,7 +112,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=2e-4, help='learning rate')
     parser.add_argument('--epochs', type=int, default=2, help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
-    parser.add_argument('--embeddings', type=str, default='coco_openCLIP_train', help='embeddings filename')
+    parser.add_argument('--embeddings', type=str, default='embeddings/coco_train.pkl', help='embeddings filename')
     parser.add_argument('--rank', type=int, default=16, help='lora rank')
     parser.add_argument('--alpha', type=int, default=32, help='lora alpha parameter')
     parser.add_argument('--dropout', type=float, default=0.05, help='lora dropout parameter')
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     parser.add_argument('--variance', type=float, help='variance for noise injection', default=0.016)
     parser.add_argument('--history', action='store_true', help='save epoch history', default=False)
     parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'geo', 'cxr'], help='dataset name')
-    parser.add_argument('--save_path', default='/nethome/recpinfo/users/fibz/data/', help='root dir for saving results')
+    parser.add_argument('--save_path', default='/mnt/d/new_results/capinchoDecoder', help='root dir for saving results')
     parser.add_argument('--dimension', default=768, type=int, help='embedding dimension')
     args = parser.parse_args()
 

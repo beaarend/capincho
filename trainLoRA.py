@@ -12,21 +12,59 @@ import torch.nn as nn
 from torch.optim import Adam
 
 from embeddingsDataset import COCODataset
-from util import plot_curves, apply_lora
+from util import plot_curves, apply_lora, get_lora_parameters
+from lora import LoRAdapter
+
+import EarlyStopping as EarlyStopping
 
 from peft import get_peft_model, LoraConfig
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "")
 
-def run_lora_training(save_path, batch_size, dataset, model, epochs, lr, patience, delta, restore_best=False):
+def run_lora_training(save_path, batch_size, embeddings_path, model, epochs, patience, delta):
     
-    train_dataset = COCODataset(dataset)
-    #val_dataset = COCODataset(dataset.replace('train', 'val'))
-    train_loader, train_indices = train_dataset.get_loader(shuffle=False, batch_size=batch_size)
-    #val_loader, val_indices = val_dataset.get_loader(shuffle=False, batch_size=batch_size)
+    train_dataset = COCODataset(embeddings_paths[0])
+    val_dataset = COCODataset(embeddings_paths[1])
+    train_loader, train_indices = train_dataset.get_loader(shuffle=False, batch_size=args.batch_size)
+    val_loader, val_indices = val_dataset.get_loader(shuffle=False, batch_size=args.batch_size)
+
+    if patience < 0:
+        patience = epochs
+
+    es = EarlyStopping(patience=patience, minimal_improvement=delta, objective='minimize', save_option=save_option)
+    training_losses = []
+    validation_losses = []
+
+    optimizer = torch.optim.AdamW(get_lora_parameters(model), weight_decay=1e-2, betas=(0.9, 0.999), lr=args.lr)
+
+    print(f'training LORAAAAAAA {os.path.basename(save_path)}')
+    time.sleep(1)
+
+    # TODO CONECTAR MODEL LORAADAPTER COM O MODEL AQUI
+
+    for i in tqdm(range(epochs)):
+        training_loss = model.train_epoch(train_loader, optimizer)
+        validation_loss = model.val_epoch(val_loader)
+
+        training_losses.append(training_loss)
+        validation_losses.append(validation_loss)
+
+        model_dict = {'epoch': i,
+                      'model_state_dict': model.state_dict(),
+                      'optimizer_state_dict': optimizer.state_dict(),
+                      'loss': training_losses[-1]
+                      }
+        es.update(validation_loss, model_dict)
+        if es.stop:
+            break
+
+    torch.save(es.model_to_save(), os.path.join(save_path, 'checkpoint.pt'))
+    plot_curves(training_losses, validation_losses, os.path.join(save_path, 'loss_plot.png'))
+    log = {'training_loss': training_losses, 'validation_loss': validation_losses}
+    with open(os.path.join(save_path, 'loss_log.pkl'), 'wb') as f:
+        pickle.dump(log, f)
     
-    # i need the textual features = text_embeddings
-    # i need the image features = image_embeddings
+
 
 if __name__ == "__main__":
     
@@ -84,6 +122,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    train_embeddings_path = 'embeddings/coco_train.pkl'
+    val_embeddings_path = 'embeddings/coco_val.pkl'
+    embeddings_paths = [train_embeddings_path, val_embeddings_path]
+
     # if not os.path.exists(args.save_path):
     #     os.makedirs(args.save_path)
     #     print('created directory', args.save_path)
@@ -96,7 +138,6 @@ if __name__ == "__main__":
     foundation.load_model()
 
     logit_scale = foundation.backbone.logit_scale
-    #bias = torch.ones([]) * args.bias
 
     model = model_dict[args.model](device)
     model.load_model()
@@ -105,12 +146,15 @@ if __name__ == "__main__":
     print(list_lora_layers)
     model.cuda()
 
-    #model = LoRAdapter(args.embedding_dim, args.alpha, logit_scale, args.learnable_alpha)
+    run_lora_training(args.save_path, args.batch_size, embeddings_paths, model, args.epochs, args.lr, args.patience, args.delta, args.best)
 
-    # model.to(device)
-    # run_lora_training(args.save_path, args.batch_size, args.embeddings, model, args.epochs, args.lr, args.patience,
-    #              args.delta, args.best)
+    optimizer = torch.optim.AdamW(get_lora_parameters(model), weight_decay=1e-2, betas=(0.9, 0.999), lr=args.lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.n_iters, eta_min=1e-6)
 
-    # result_dict = args.__dict__
-    # result_dict['checkpoint_path'] = os.path.join(args.save_path, 'checkpoint.pt')
-    # result_dict['logit_scale'] = model.logit_scale.detach().cpu().item()
+    
+
+
+
+    # training loop
+
+
