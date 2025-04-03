@@ -159,9 +159,10 @@ def model_from_json(json_file, device):
     import json
     with open(json_file, 'r') as f:
         config = json.load(f)
-    precision = torch.float16 if config['fp'] == 'fp16' else torch.float32
+    #precision = torch.float16 if config['fp'] == 'fp16' else torch.float32
+    precision = torch.float32
 
-    decoder = Decoder(config['model_name'], device, prefix_length=config['prefix_len'], precision=precision,
+    decoder = Decoder(config['model'], device, prefix_length=config['prefix_len'], precision=precision,
                       add_noise=config['text_only'], dimension=config['dimension'])
 
     if not config['full_finetune']:
