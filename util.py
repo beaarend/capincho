@@ -123,7 +123,7 @@ def apply_lora(args, clip_model):
         indices = INDEX_POSITIONS_TEXT[args.position]
         text_encoder = clip_model.backbone.transformer
         for i, block in enumerate(text_encoder.resblocks):
-            print(f"Residual Attention Block {i}: {block}")
+            #print(f"Residual Attention Block {i}: {block}")
             if i in indices:
                 for name, submodule in block.named_children():
                     if isinstance(submodule, nn.MultiheadAttention):
@@ -136,7 +136,7 @@ def apply_lora(args, clip_model):
         indices = INDEX_POSITIONS_VISION[args.backbone][args.position]
         vision_encoder = clip_model.backbone.visual.transformer
         for i, block in enumerate(vision_encoder.resblocks):
-            print(f"Residual Attention Block {i}: {block}")
+            #print(f"Residual Attention Block {i}: {block}")
             if i in indices:
                 for name, submodule in block.named_children():
                     if isinstance(submodule, nn.MultiheadAttention):

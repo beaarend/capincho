@@ -15,6 +15,9 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "")
 
 
 def run_training(save_path, batch_size, dataset, model, epochs, lr, patience, delta, restore_best=False):
+
+    dataset = 'embeddings/coco_train.pkl'
+
     train_dataset = COCODataset(dataset)
     val_dataset = COCODataset(dataset.replace('train', 'val'))
     train_loader, train_indices = train_dataset.get_loader(shuffle=False, batch_size=batch_size)

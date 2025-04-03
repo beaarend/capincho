@@ -15,7 +15,7 @@ from embeddingsDataset import COCODataset
 from util import plot_curves, apply_lora, get_lora_parameters
 from lora import LoRAdapter
 
-import EarlyStopping as EarlyStopping
+import earlyStopping as EarlyStopping
 
 from peft import get_peft_model, LoraConfig
 
@@ -38,7 +38,7 @@ def run_lora_training(save_path, batch_size, embeddings_path, model, epochs, pat
     optimizer = torch.optim.AdamW(get_lora_parameters(model), weight_decay=1e-2, betas=(0.9, 0.999), lr=args.lr)
 
     print(f'training LORAAAAAAA {os.path.basename(save_path)}')
-    time.sleep(1)
+    exit()
 
     # TODO CONECTAR MODEL LORAADAPTER COM O MODEL AQUI
 
@@ -130,6 +130,8 @@ if __name__ == "__main__":
     #     os.makedirs(args.save_path)
     #     print('created directory', args.save_path)
 
+    args.save_path = 'results/lora'
+
     model_dict = {'coca': foundation_models.OpenCoCa,
                   'clip': foundation_models.CLIP,
                   'openclip': foundation_models.OpenCLIP}
@@ -139,22 +141,11 @@ if __name__ == "__main__":
 
     logit_scale = foundation.backbone.logit_scale
 
-    model = model_dict[args.model](device)
-    model.load_model()
+    list_lora_layers = apply_lora(args, foundation)
 
-    list_lora_layers = apply_lora(args, model)
-    print(list_lora_layers)
-    model.cuda()
+    run_lora_training(args.save_path, args.batch_size, embeddings_paths, foundation, args.epochs, args.lr, args.patience, args.delta, args.best)
 
-    run_lora_training(args.save_path, args.batch_size, embeddings_paths, model, args.epochs, args.lr, args.patience, args.delta, args.best)
-
-    optimizer = torch.optim.AdamW(get_lora_parameters(model), weight_decay=1e-2, betas=(0.9, 0.999), lr=args.lr)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.n_iters, eta_min=1e-6)
-
-    
-
-
-
-    # training loop
+    # optimizer = torch.optim.AdamW(get_lora_parameters(model), weight_decay=1e-2, betas=(0.9, 0.999), lr=args.lr)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.n_iters, eta_min=1e-6)
 
 
