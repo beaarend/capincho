@@ -13,20 +13,20 @@ from torch.optim import Adam
 
 from embeddingsDataset import COCODataset
 from util import plot_curves, apply_lora, get_lora_parameters
-from lora import LoRAdapter
+from lora import LoRAWrapper
 
-import earlyStopping as EarlyStopping
+from earlyStopping import EarlyStopping
 
 from peft import get_peft_model, LoraConfig
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "")
 
-def run_lora_training(save_path, batch_size, embeddings_path, model, epochs, patience, delta):
+def run_lora_training(save_path, batch_size, embeddings_path, model, epochs, lr, patience, delta, save_option):
     
     train_dataset = COCODataset(embeddings_paths[0])
     val_dataset = COCODataset(embeddings_paths[1])
-    train_loader, train_indices = train_dataset.get_loader(shuffle=False, batch_size=args.batch_size)
-    val_loader, val_indices = val_dataset.get_loader(shuffle=False, batch_size=args.batch_size)
+    train_loader, train_indices = train_dataset.get_loader(shuffle=False, batch_size=batch_size)
+    val_loader, val_indices = val_dataset.get_loader(shuffle=False, batch_size=batch_size)
 
     if patience < 0:
         patience = epochs
@@ -35,12 +35,11 @@ def run_lora_training(save_path, batch_size, embeddings_path, model, epochs, pat
     training_losses = []
     validation_losses = []
 
-    optimizer = torch.optim.AdamW(get_lora_parameters(model), weight_decay=1e-2, betas=(0.9, 0.999), lr=args.lr)
+    optimizer = torch.optim.AdamW(get_lora_parameters(model), weight_decay=1e-2, betas=(0.9, 0.999), lr=lr)
 
     print(f'training LORAAAAAAA {os.path.basename(save_path)}')
-    exit()
 
-    # TODO CONECTAR MODEL LORAADAPTER COM O MODEL AQUI
+    # integrate LoRAdapter with the model.backbone
 
     for i in tqdm(range(epochs)):
         training_loss = model.train_epoch(train_loader, optimizer)
@@ -84,12 +83,12 @@ if __name__ == "__main__":
     # parser.add_argument('--embedding_dim', type=int, default=768, help='embedding dimension')
     # parser.add_argument('--learnable_alpha', action='store_true', help='learnable alpha', default=False)
     # parser.add_argument('--save_path', type=str, required=True, help='path to save outputs')
-    # parser.add_argument('--patience', type=int, default=-1, help='early stopping patience, '
-    #                                                              'negative value means no early stopping')
+    parser.add_argument('--patience', type=int, default=-1, help='early stopping patience, '
+                                                                  'negative value means no early stopping')
     # parser.add_argument('--lr', type=float, default=0.00001, help='learning rate')
-    # parser.add_argument('--best', action='store_true', help='restore best model if using early stopping', default=False)
-    # parser.add_argument('--delta', type=float, help='minimal improvement for early stopping', default=0.01,)
-    # parser.add_argument('--epochs', type=int, default=200, help='number training of epochs')
+    parser.add_argument('--best', action='store_true', help='restore best model if using early stopping', default=False)
+    parser.add_argument('--delta', type=float, help='minimal improvement for early stopping', default=0.01,)
+    parser.add_argument('--epochs', type=int, default=200, help='number training of epochs')
 
     #parser.add_argument('--seed', default=1, type=int)
     # Dataset arguments
@@ -115,7 +114,7 @@ if __name__ == "__main__":
     parser.add_argument('--alpha', default=1, type=int, help='scaling (see LoRA paper)')
     parser.add_argument('--dropout_rate', default=0.25, type=float, help='dropout rate applied before the LoRA module')
     
-    #parser.add_argument('--save_path', default=None, help='path to save the lora modules after training, not saved if None')
+    parser.add_argument('--save_path', default='results/lora', help='path to save the lora modules after training, not saved if None')
     #parser.add_argument('--filename', default='lora_weights', help='file name to save the lora weights (.pt extension will be added)')
     
     parser.add_argument('--eval_only', default=False, action='store_true', help='only evaluate the LoRA modules (save_path should not be None)')
@@ -126,11 +125,9 @@ if __name__ == "__main__":
     val_embeddings_path = 'embeddings/coco_val.pkl'
     embeddings_paths = [train_embeddings_path, val_embeddings_path]
 
-    # if not os.path.exists(args.save_path):
-    #     os.makedirs(args.save_path)
-    #     print('created directory', args.save_path)
-
-    args.save_path = 'results/lora'
+    if not os.path.exists(args.save_path):
+        os.makedirs(args.save_path)
+        print('created directory', args.save_path)
 
     model_dict = {'coca': foundation_models.OpenCoCa,
                   'clip': foundation_models.CLIP,
@@ -138,6 +135,7 @@ if __name__ == "__main__":
 
     foundation = model_dict[args.model](device)
     foundation.load_model()
+    foundation = LoRAWrapper(foundation)
 
     logit_scale = foundation.backbone.logit_scale
 

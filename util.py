@@ -148,7 +148,7 @@ def apply_lora(args, clip_model):
 
 def get_lora_parameters(model, bias='none'):
     params = []
-    for name, param in model.named_parameters():
+    for name, param in model.backbone.named_parameters():
         if bias == 'none':
             if 'lora_' in name:
                 params.append(param)
