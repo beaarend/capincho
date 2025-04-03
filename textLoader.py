@@ -21,15 +21,16 @@ class TextLoader(Dataset):
         else:
             with open(data_path, 'rb') as f:
                 data = pickle.load(f)
-            lim = int(0.9 * len(data['embeddings']))
-            # print(f'LEN: {lim}')
-            if split == 'train':
-                self.embeddings = data['embeddings'][:lim]
-                self.texts = data['captions'][:lim]
 
-            if split == 'val':
-                self.embeddings = data['embeddings'][lim:]
-                self.texts = data['captions'][lim:]
+            lim = int(0.9 * len(data['image_embeddings']))
+            if split == 'train':
+                self.embeddings = data['image_embeddings'][:lim]
+                self.texts = data['texts_embeddings'][:lim]
+                self.image_ids = data['image_id'][:lim]
+            elif split == 'val':
+                self.embeddings = data['image_embeddings'][lim:]
+                self.texts = data['texts_embeddings'][lim:]
+                self.image_ids = data['image_id'][lim:]
         self.has_embeddings = has_embeddings
 
     def __len__(self):
@@ -38,9 +39,11 @@ class TextLoader(Dataset):
     def __getitem__(self, index):
         if self.has_embeddings:
             embedding = torch.tensor(self.embeddings[index])
-            return {'captions': self.texts[index], 'embeddings': embedding}
-        else:
-            return {'captions': self.texts[index]}
+            return {
+                'captions': self.texts[index],
+                'image_embeddings': embedding,
+                'image_id': self.image_ids[index]
+            }
 
     def get_loader(self, batch_size=32):
         indices = np.arange(len(self.texts))
