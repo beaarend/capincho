@@ -7,12 +7,20 @@ from embeddingsDataset import COCODataset
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class LoRAWrapper:
-    def __init__(self, foundation):
+    def __init__(self, foundation, encoder):
         self.foundation = foundation
+        self.encoder = encoder
+
+    def __getattr__(self, name):
+        foundation = object.__getattribute__(self, "foundation") 
+        if hasattr(foundation, name):
+            return getattr(foundation, name)
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+
 
     def forward(self, batch):
         if self.encoder == 'text' or self.encoder == 'both':
-            text_features = batch['texts_embeddings'].to(device, torch.float32)
+            text_features = batch['texts_embeddings'].to(device, torch.float32)  
             c = random.randint(0, text_features.shape[1]-1)
             text_features = text_features[:, c, :]
             text_features = text_features / text_features.norm(dim=1, keepdim=True)
@@ -21,7 +29,7 @@ class LoRAWrapper:
             image_features = batch['image_embeddings'].to(device, torch.float32).squeeze()
             image_features = image_features / image_features.norm(dim=1, keepdim=True)
     
-        cosine_similarity = self.logit_scale * image_features @ text_features.T
+        cosine_similarity = self.foundation.backbone.logit_scale * image_features @ text_features.T
         return cosine_similarity
     
     def image_projection(self, embeddings):

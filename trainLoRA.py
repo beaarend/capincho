@@ -37,10 +37,6 @@ def run_lora_training(save_path, batch_size, embeddings_path, model, epochs, lr,
 
     optimizer = torch.optim.AdamW(get_lora_parameters(model), weight_decay=1e-2, betas=(0.9, 0.999), lr=lr)
 
-    print(f'training LORAAAAAAA {os.path.basename(save_path)}')
-
-    # integrate LoRAdapter with the model.backbone
-
     for i in tqdm(range(epochs)):
         training_loss = model.train_epoch(train_loader, optimizer)
         validation_loss = model.val_epoch(val_loader)
@@ -49,7 +45,7 @@ def run_lora_training(save_path, batch_size, embeddings_path, model, epochs, lr,
         validation_losses.append(validation_loss)
 
         model_dict = {'epoch': i,
-                      'model_state_dict': model.state_dict(),
+                      'model_state_dict': model.foundation.backbone.state_dict(),
                       'optimizer_state_dict': optimizer.state_dict(),
                       'loss': training_losses[-1]
                       }
@@ -135,9 +131,9 @@ if __name__ == "__main__":
 
     foundation = model_dict[args.model](device)
     foundation.load_model()
-    foundation = LoRAWrapper(foundation)
+    foundation = LoRAWrapper(foundation, args.encoder)
 
-    logit_scale = foundation.backbone.logit_scale
+    
 
     list_lora_layers = apply_lora(args, foundation)
 
