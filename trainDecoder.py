@@ -126,7 +126,7 @@ if __name__ == '__main__':
     parser.add_argument('--variance', type=float, help='variance for noise injection', default=0.016)
     parser.add_argument('--history', action='store_true', help='save epoch history', default=False)
     parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'geo', 'cxr'], help='dataset name')
-    parser.add_argument('--save_path', default='/mnt/d/new_results/capinchoDecoder', help='root dir for saving results')
+    parser.add_argument('--save_path', default='results/decoder', help='root dir for saving results')
     parser.add_argument('--dimension', default=768, type=int, help='embedding dimension')
     args = parser.parse_args()
 

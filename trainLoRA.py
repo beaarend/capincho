@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 
 import os.path
-import time
+import json
 import pickle
 from tqdm import tqdm
 import argparse
@@ -21,7 +21,7 @@ from peft import get_peft_model, LoraConfig
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "")
 
-def run_lora_training(save_path, batch_size, embeddings_path, model, epochs, lr, patience, delta, save_option):
+def run_lora_training(save_path, batch_size, embeddings_path, model, epochs, lr, patience, delta, save_option, iters):
     
     train_dataset = COCODataset(embeddings_paths[0])
     val_dataset = COCODataset(embeddings_paths[1])
@@ -38,10 +38,26 @@ def run_lora_training(save_path, batch_size, embeddings_path, model, epochs, lr,
     optimizer = torch.optim.AdamW(get_lora_parameters(model), weight_decay=1e-2, betas=(0.9, 0.999), lr=lr)
 
     for i in tqdm(range(epochs)):
-        training_loss = model.train_epoch(train_loader, optimizer)
+
+        model.foundation.backbone.train()
+        epoch_loss = 0.0
+
+        for batch_idx, batch in enumerate(train_loader):
+            if batch_idx >= iters:
+                break
+
+            optimizer.zero_grad()
+            loss = model.train_epoch([batch], optimizer)
+            epoch_loss += loss
+
+        epoch_loss /= min(iters, len(train_loader))
+        training_losses.append(epoch_loss)
+
+        #training_loss = model.train_epoch(train_loader, optimizer)
+        model.foundation.backbone.eval()
         validation_loss = model.val_epoch(val_loader)
 
-        training_losses.append(training_loss)
+        #training_losses.append(training_loss)
         validation_losses.append(validation_loss)
 
         model_dict = {'epoch': i,
@@ -64,33 +80,12 @@ def run_lora_training(save_path, batch_size, embeddings_path, model, epochs, lr,
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
-    # parser.add_argument('--model', type=str, default='openclip', choices=['openclip', 'clip', 'coca'],
-    #                     help='foundation model')
-    # parser.add_argument('--adapter', type=str, default='contrastive', choices=['contrastive', 'sig', 'mixer'],
-    #                     help='adapter type')
-    # parser.add_argument('--alpha', type=float, default=0.3, help='residual learning rate')
-    # parser.add_argument('--bias', type=float, default=-10., help='logit bias, sig adapter')
-    # parser.add_argument('--embeddings', type=str, required=True,
-    #                     help='training embeddings path')
-    # parser.add_argument('--use_bias', action='store_true', help='use logit bias in sig adapter', default=False)
-    # parser.add_argument('--multiple_positives', action='store_true',
-    #                     help='use multiple positives per batch in sig adapter', default=False)
-    # parser.add_argument('--batch_size', type=int, default=400, help='batch size')
-    # parser.add_argument('--embedding_dim', type=int, default=768, help='embedding dimension')
-    # parser.add_argument('--learnable_alpha', action='store_true', help='learnable alpha', default=False)
-    # parser.add_argument('--save_path', type=str, required=True, help='path to save outputs')
     parser.add_argument('--patience', type=int, default=-1, help='early stopping patience, '
                                                                   'negative value means no early stopping')
-    # parser.add_argument('--lr', type=float, default=0.00001, help='learning rate')
-    parser.add_argument('--best', action='store_true', help='restore best model if using early stopping', default=False)
+    parser.add_argument('--best', action='store_true', help='restore best model if using early stopping', default="best")
     parser.add_argument('--delta', type=float, help='minimal improvement for early stopping', default=0.01,)
     parser.add_argument('--epochs', type=int, default=200, help='number training of epochs')
 
-    #parser.add_argument('--seed', default=1, type=int)
-    # Dataset arguments
-    #parser.add_argument('--root_path', type=str, default='')
-    #parser.add_argument('--dataset', type=str, default='dtd')
-    #parser.add_argument('--shots', default=16, type=int)
     # Model arguments
     parser.add_argument('--backbone', default='ViT-B/16', type=str)
     parser.add_argument('--model', type=str, default='openclip', choices=['openclip', 'clip', 'coca'],
@@ -109,10 +104,7 @@ if __name__ == "__main__":
     parser.add_argument('--r', default=2, type=int, help='the rank of the low-rank matrices')
     parser.add_argument('--alpha', default=1, type=int, help='scaling (see LoRA paper)')
     parser.add_argument('--dropout_rate', default=0.25, type=float, help='dropout rate applied before the LoRA module')
-    
-    parser.add_argument('--save_path', default='results/lora', help='path to save the lora modules after training, not saved if None')
-    #parser.add_argument('--filename', default='lora_weights', help='file name to save the lora weights (.pt extension will be added)')
-    
+    parser.add_argument('--save_path', default='results/lora2', help='path to save the lora modules after training, not saved if None')
     parser.add_argument('--eval_only', default=False, action='store_true', help='only evaluate the LoRA modules (save_path should not be None)')
 
     args = parser.parse_args()
@@ -133,13 +125,16 @@ if __name__ == "__main__":
     foundation.load_model()
     foundation = LoRAWrapper(foundation, args.encoder)
 
-    
-
     list_lora_layers = apply_lora(args, foundation)
 
-    run_lora_training(args.save_path, args.batch_size, embeddings_paths, foundation, args.epochs, args.lr, args.patience, args.delta, args.best)
+    run_lora_training(args.save_path, args.batch_size, embeddings_paths, foundation, args.epochs, args.lr, args.patience, args.delta, args.best, args.n_iters)
 
-    # optimizer = torch.optim.AdamW(get_lora_parameters(model), weight_decay=1e-2, betas=(0.9, 0.999), lr=args.lr)
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.n_iters, eta_min=1e-6)
+    result_dict = args.__dict__
+    result_dict['checkpoint_path'] = os.path.join(args.save_path, 'checkpoint.pt')
+    result_dict['logit_scale'] = foundation.backbone.logit_scale.detach().cpu().item()
+
+    with open(os.path.join(args.save_path, 'experiment.json'), 'w') as f:
+        json.dump(result_dict, f, indent=2)
+
 
 

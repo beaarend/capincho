@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from transformers import AutoTokenizer, AutoModelForCausalLM, set_seed
-from mapping import Mapper
+from mapping import Mapper, MapperLoRA
 from captioningDataset import CaptioningDataset
 import math
 import copy
@@ -35,7 +35,7 @@ class Decoder(nn.Module):
         self.hidden_size = self._get_hidden_size()
         self.prefix_length = prefix_length
         self.fp = precision
-        self.mapper = Mapper(dimension, self.hidden_size, self.prefix_length).to(dtype=precision)
+        self.mapper = MapperLoRA(dimension, self.hidden_size, self.prefix_length).to(dtype=precision)
 
         if self.device:
             self.model.to(self.device)
@@ -159,11 +159,10 @@ def model_from_json(json_file, device):
     import json
     with open(json_file, 'r') as f:
         config = json.load(f)
-    #precision = torch.float16 if config['fp'] == 'fp16' else torch.float32
-    precision = torch.float32
+    precision = torch.float16 if config['fp'] == 'fp16' else torch.float32
 
     decoder = Decoder(config['model'], device, prefix_length=config['prefix_len'], precision=precision,
-                      add_noise=config['text_only'], dimension=config['dimension'])
+                      add_noise=config['text_only'], dimension=config['embedding_dim'])
 
     if not config['full_finetune']:
         decoder.lora_model(config['rank'], config['alpha'], config['dropout'])
@@ -175,13 +174,16 @@ def model_from_json(json_file, device):
 
 if '__main__' == __name__:
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    dataset = CaptioningDataset('embeddings/coco_openclip_val.pkl')
+    dataset = CaptioningDataset('embeddings/coco_val.pkl')
     loader = dataset.get_loader()
 
-    model = model_from_json('experiments/t5-base_openclip_ft.json', device)
-    for batch in loader:
-        model(batch)
-        break
+    # model = model_from_json('experiments/t5-base_openclip_ft.json', device)
+    # for batch in loader:
+    #     model(batch)
+    #     break
+
+    model = Decoder('t5-base', device)
+    print(model.state_dict().keys())
 
     # tokens = model.tokenizer('teste de ids')
     # print(tokens)

@@ -16,9 +16,9 @@ from util import dataset_path
 if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "")
     parser = argparse.ArgumentParser()
-    parser.add_argument('--experiment', type=str, default='experiments/opt-350m-coco.json',
+    parser.add_argument('--experiment', type=str, default='results/adapter2/experiment.json',
                         help='experiment path')
-    parser.add_argument('--embeddings', type=str, default='embeddings/coco_openCLIP_val.pkl')
+    parser.add_argument('--embeddings', type=str, default='embeddings/coco_val.pkl')
     parser.add_argument('--qualitative', action='store_true', help='run qualitative evaluation')
     parser.add_argument('--random_seed', type=int, default=777, help='random seed for qualitative evaluation')
     parser.add_argument('--num_images', '-n', type=int, default=10,

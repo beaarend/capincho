@@ -9,26 +9,51 @@ from util import dataset_path
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+from lora import LoRAWrapper
+from util import apply_lora
+
 from peft import get_peft_model, LoraConfig
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--split', choices=['train', 'val'], default='train', help='split to use')
     parser.add_argument('--model', choices=['openclip', 'clip', 'coca'], default='openclip', help='model to use')
-    parser.add_argument('--save_path', type=str, default='embeddings/coco_train.pkl')
+    parser.add_argument('--backbone', default='ViT-B/16', type=str)
+
+    parser.add_argument('--lora', action='store_true', help='use lora', default=True)
+
+    parser.add_argument('--position', type=str, default='all', choices=['bottom', 'mid', 'up', 'half-up', 'half-bottom', 'all', 'top3'], help='where to put the LoRA modules')
+    parser.add_argument('--encoder', type=str, choices=['text', 'vision', 'both'], default='both')
+    parser.add_argument('--params', metavar='N', type=str, nargs='+', default=['q', 'k', 'v'], help='list of attention matrices where putting a LoRA') 
+    parser.add_argument('--r', default=2, type=int, help='the rank of the low-rank matrices')
+    parser.add_argument('--alpha', default=1, type=int, help='scaling (see LoRA paper)')
+    parser.add_argument('--dropout_rate', default=0.25, type=float, help='dropout rate applied before the LoRA module')
+
+
+    parser.add_argument('--save_path', type=str, default='embeddings/coco_lora_train.pkl')
+
     args = parser.parse_args()
 
     model_dict = {'coca': foundation_models.OpenCoCa,
                   'clip': foundation_models.CLIP,
                   'openclip': foundation_models.OpenCLIP,
                   'capivara': foundation_models.Capivara}
-
+    
     model = model_dict[args.model](device)
+
     model.load_model()
+
+    if args.lora:
+        model = LoRAWrapper(model, encoder='both')
+        list_lora_layers = apply_lora(args, model)
+        model.backbone.to(device)
+        
     model.backbone.eval()
 
     #coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_{args.split}2017.json')
     coco = COCO(os.path.join(dataset_path, 'COCO', 'annotations', f'captions_{args.split}2017.json'))
+
+    #rsicd = RSICD(os.path.join(dataset_path, 'RSICD/''annotations', f'captions_{args.split}2017.json'))
 
     ids = coco.getImgIds()
     imgs = coco.loadImgs(ids)

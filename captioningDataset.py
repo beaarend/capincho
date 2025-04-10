@@ -11,9 +11,6 @@ class CaptioningDataset(Dataset):
     def __init__(self, embeddings_path, text_only=True):
         self.text_only = text_only
 
-        print("PRINTANDO EMBEDDINGS PATH")
-        print(embeddings_path)
-        
         with open(embeddings_path, 'rb') as f:
             embeddings = pickle.load(f)
         self.embeddings = []

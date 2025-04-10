@@ -14,7 +14,7 @@ from util import plot_curves
 device = torch.device("cuda:0" if torch.cuda.is_available() else "")
 
 
-def run_training(save_path, batch_size, dataset, model, epochs, lr, patience, delta, restore_best=False):
+def run_training(save_path, batch_size, dataset, model, epochs, lr, patience, delta, save_option="best"):
 
     dataset = 'embeddings/coco_train.pkl'
 
@@ -22,7 +22,7 @@ def run_training(save_path, batch_size, dataset, model, epochs, lr, patience, de
     val_dataset = COCODataset(dataset.replace('train', 'val'))
     train_loader, train_indices = train_dataset.get_loader(shuffle=False, batch_size=batch_size)
     val_loader, val_indices = val_dataset.get_loader(shuffle=False, batch_size=batch_size)
-    save_option = "best" if restore_best else "last"
+    # save_option = "best" if restore_best else "last"
     if patience < 0:
         patience = epochs
 
