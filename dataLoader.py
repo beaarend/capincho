@@ -41,9 +41,9 @@ class DatasetHandler(Generic[TImageId, TAnnotationId, TCategoryId]):
 
     def get_image_ids(self) -> list[TImageId]:
         return [img["imgid"] for img in self.dataset.get("images", [])]
-
-    def get_annotation_ids(self) -> list[TAnnotationId]:
-        return [ann["imgid"] for ann in self.dataset.get("annotations", [])]
+    
+    def get_annotation_ids(self, img_id: TImageId) -> list[TAnnotationId]:
+        return [ann["imgid"] for ann in self.dataset.get("annotations", []) if ann["imgid"] == img_id]
     
     def load_images(self, ids: list[TImageId]) -> list[dict]:
         id_set = set(ids)

@@ -84,8 +84,6 @@ if __name__ == '__main__':
         text_embeds = model.language_embedding(texts[:5])
         data['texts_embeddings'].append(text_embeds.detach().cpu())
 
-        exit()
-
     with open(args.save_path, 'wb') as f:
         pickle.dump(data, f)
 
