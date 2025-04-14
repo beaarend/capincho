@@ -6,6 +6,9 @@ from tqdm import tqdm
 import pickle
 import foundation_models
 from util import dataset_path
+
+from dataLoader import DatasetHandler
+
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -29,6 +32,7 @@ if __name__ == '__main__':
     parser.add_argument('--alpha', default=1, type=int, help='scaling (see LoRA paper)')
     parser.add_argument('--dropout_rate', default=0.25, type=float, help='dropout rate applied before the LoRA module')
 
+    parser.add_argument('--dataset',type=str, default='rsicd', choices=['coco', 'rsicd'])
 
     parser.add_argument('--save_path', type=str, default='embeddings/coco_lora_train.pkl')
 
@@ -50,29 +54,37 @@ if __name__ == '__main__':
         
     model.backbone.eval()
 
+    if(args.dataset == 'coco'):
+        new_dataset_path = dataset_path + 'COCO/'
+    elif(args.dataset == 'rsicd'):
+        new_dataset_path = dataset_path + 'RSICD/'
+
     #coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_{args.split}2017.json')
-    coco = COCO(os.path.join(dataset_path, 'COCO', 'annotations', f'captions_{args.split}2017.json'))
+    #loaded_dataset = COCO(os.path.join(dataset_path, 'COCO', 'annotations', f'captions_{args.split}2017.json'))
+    loaded_dataset = DatasetHandler(os.path.join(new_dataset_path, 'annotations', f'{args.split}_split.json'))
 
-    #rsicd = RSICD(os.path.join(dataset_path, 'RSICD/''annotations', f'captions_{args.split}2017.json'))
-
-    ids = coco.getImgIds()
-    imgs = coco.loadImgs(ids)
+    ids = loaded_dataset.get_image_ids()
+    imgs = loaded_dataset.load_images(ids)
 
     data = {'image_name': [], 'image_id': [], 'image_embeddings': [], 'texts_embeddings': [], }
     for i, image in enumerate(tqdm(imgs)):
-        data['image_name'].append(image['file_name'])
+        data['image_name'].append(image['filename'])
 
         data['image_id'].append(ids[i])
         # img_embeds = model.visual_embedding('datasets_torchvision/coco_2017/{}2017/{}'.format(args.split,
         #                                                                                       image['file_name']))
-        img_embeds = model.visual_embedding(os.path.join(dataset_path, 'COCO', f'{args.split}2017', image['file_name']))
+        #img_embeds = model.visual_embedding(os.path.join(dataset_path, 'COCO', f'{args.split}2017', image['file_name']))
         
+        img_embeds = model.visual_embedding(os.path.join(new_dataset_path, f'rsicd_{args.split}', image['filename']))
+
         data['image_embeddings'].append(img_embeds.detach().cpu())
 
-        ann = coco.loadAnns(coco.getAnnIds(ids[i]))
+        ann = loaded_dataset.load_annotations(loaded_dataset.get_annotation_ids(ids[i]))
         texts = [e['caption'] for e in ann]
         text_embeds = model.language_embedding(texts[:5])
         data['texts_embeddings'].append(text_embeds.detach().cpu())
+
+        exit()
 
     with open(args.save_path, 'wb') as f:
         pickle.dump(data, f)
