@@ -75,7 +75,8 @@ class Decoder(nn.Module):
         if type(self.model) == T5ForConditionalGeneration:
             model = 't5'
 
-        embeddings = batch['embeddings'].to(dtype=self.fp)
+        #embeddings = batch['embeddings'].to(dtype=self.fp)
+        embeddings = batch['image_embeddings'].to(dtype=self.fp)
         embeddings = embeddings / embeddings.norm(dim=-1, keepdim=True)
 
         captions = batch['captions']
@@ -157,12 +158,14 @@ class Decoder(nn.Module):
 # utility function
 def model_from_json(json_file, device):
     import json
+
     with open(json_file, 'r') as f:
         config = json.load(f)
+
     precision = torch.float16 if config['fp'] == 'fp16' else torch.float32
 
-    decoder = Decoder(config['model'], device, prefix_length=config['prefix_len'], precision=precision,
-                      add_noise=config['text_only'], dimension=config['embedding_dim'])
+    decoder = Decoder(config['model_name'], device, prefix_length=config['prefix_len'], precision=precision,
+                      add_noise=config['text_only'], dimension=config['dimension'])
 
     if not config['full_finetune']:
         decoder.lora_model(config['rank'], config['alpha'], config['dropout'])

@@ -34,13 +34,15 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
     model_size(decoder)
     learnable_parameters(decoder)
 
-    if dataset == 'coco':
+    # if dataset == 'coco':
+    if dataset == 'rsicd':
         train_data = CaptioningDataset(f'{filename}', text_only)
         val_name = filename.replace('train', 'val')
         val_data = CaptioningDataset(f'{val_name}', text_only)
     else:
         train_data = TextLoader(f'{filename}', has_embeddings=True, split='train')
-        val_data = TextLoader(f'{filename}', has_embeddings=True, split='val')
+        val_name = filename.replace('train', 'val')
+        val_data = TextLoader(f'{val_name}', has_embeddings=True, split='val')
 
     train_loader = train_data.get_loader(batch_size=batch_size)
     val_loader = val_data.get_loader(batch_size=batch_size)
@@ -112,7 +114,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=2e-4, help='learning rate')
     parser.add_argument('--epochs', type=int, default=2, help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
-    parser.add_argument('--embeddings', type=str, default='embeddings/coco_lora_train.pkl', help='embeddings filename')
+    parser.add_argument('--embeddings', type=str, default='embeddings/rsicd_lora_train.pkl', help='embeddings filename')
     parser.add_argument('--rank', type=int, default=16, help='lora rank')
     parser.add_argument('--alpha', type=int, default=32, help='lora alpha parameter')
     parser.add_argument('--dropout', type=float, default=0.05, help='lora dropout parameter')
@@ -125,8 +127,8 @@ if __name__ == '__main__':
     parser.add_argument('--noise', action='store_true', help='add noise to embeddings', default=False)
     parser.add_argument('--variance', type=float, help='variance for noise injection', default=0.016)
     parser.add_argument('--history', action='store_true', help='save epoch history', default=False)
-    parser.add_argument('--dataset', type=str, default='coco', choices=['coco', 'geo', 'cxr'], help='dataset name')
-    parser.add_argument('--save_path', default='results/decoder', help='root dir for saving results')
+    parser.add_argument('--dataset', type=str, default='rsicd', choices=['coco', 'geo', 'cxr', 'rsicd'], help='dataset name')
+    parser.add_argument('--save_path', default='results_rsicd/decoder', help='root dir for saving results')
     parser.add_argument('--dimension', default=768, type=int, help='embedding dimension')
     args = parser.parse_args()
 

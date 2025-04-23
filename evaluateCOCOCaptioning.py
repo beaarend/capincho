@@ -16,11 +16,11 @@ from util import dataset_path
 if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "")
     parser = argparse.ArgumentParser()
-    parser.add_argument('--experiment', type=str, default='results/adapter2/experiment.json',
+    parser.add_argument('--experiment', type=str, default='results_coco/decoder/experiment.json',
                         help='experiment path')
-    parser.add_argument('--embeddings', type=str, default='embeddings/coco_val.pkl')
-    parser.add_argument('--qualitative', action='store_true', help='run qualitative evaluation')
-    parser.add_argument('--random_seed', type=int, default=777, help='random seed for qualitative evaluation')
+    parser.add_argument('--embeddings', type=str, default='embeddings/coco_lora_val.pkl')
+    parser.add_argument('--qualitative', action='store_true', default=True, help='run qualitative evaluation')
+    parser.add_argument('--random_seed', type=int, default=42, help='random seed for qualitative evaluation')
     parser.add_argument('--num_images', '-n', type=int, default=10,
                         help='number of images to evaluate in qualitative evaluation')
     parser.add_argument('--load_results', action='store_true', help='load saved results')
@@ -50,7 +50,7 @@ if __name__ == '__main__':
             image = Image.open(dataset_path + '/COCO/val2017/{}'.format(embeddings[i]['image_name']))
 
             w, h = image.size[:2]
-            font = ImageFont.truetype("fonts/Instruction.ttf", 16)
+            font = ImageFont.load_default()
             lim = int(w / 10)
 
             new_gt = split_sentence(text_gt, lim)
@@ -61,6 +61,8 @@ if __name__ == '__main__':
             new_h = h + (lines * 18)
             text_board = Image.new('RGB', (w, new_h - h), (255, 255, 255))
             ImageDraw.Draw(text_board).multiline_text((1, 1), new_text, (0, 0, 0), font=font)
+
+            os.makedirs('plots/caption', exist_ok=True)
 
             dst = Image.new('RGB', (w, new_h), (255, 255, 255))
             dst.paste(image, (0, 0))

@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--dataset',type=str, default='rsicd', choices=['coco', 'rsicd'])
 
-    parser.add_argument('--save_path', type=str, default='embeddings/coco_lora_train.pkl')
+    parser.add_argument('--save_path', type=str, default='embeddings/rsicd_lora_train.pkl')
 
     args = parser.parse_args()
 
@@ -80,7 +80,8 @@ if __name__ == '__main__':
         data['image_embeddings'].append(img_embeds.detach().cpu())
 
         ann = loaded_dataset.load_annotations(loaded_dataset.get_annotation_ids(ids[i]))
-        texts = [e['caption'] for e in ann]
+
+        texts = [e['raw'] for e in ann]
         text_embeds = model.language_embedding(texts[:5])
         data['texts_embeddings'].append(text_embeds.detach().cpu())
 

@@ -3,6 +3,8 @@ import random
 import numpy
 from torch.utils.data import Dataset
 from pycocotools.coco import COCO
+from dataLoader import DatasetHandler
+import os
 import torch
 
 from util import dataset_path
@@ -13,21 +15,28 @@ class CaptioningDataset(Dataset):
 
         with open(embeddings_path, 'rb') as f:
             embeddings = pickle.load(f)
+        
         self.embeddings = []
         self.captions = []
+
+        assert len(self.embeddings) == len(self.captions), "Mismatch between embeddings and captions length"
 
         # captions
         if 'val' in embeddings_path:
             #coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_val2017.json')
-            coco = COCO(f'{dataset_path}/COCO/annotations/captions_val2017.json')
+            #coco = COCO(f'{dataset_path}/COCO/annotations/captions_val2017.json')
+            loaded_dataset = DatasetHandler(os.path.join(dataset_path,'RSICD', 'annotations', 'val_split.json'))
 
         else:
             #coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_train2017.json')
-            coco = COCO(f'{dataset_path}/COCO/annotations/captions_train2017.json')
+            #coco = COCO(f'{dataset_path}/COCO/annotations/captions_train2017.json')
+            loaded_dataset = DatasetHandler(os.path.join(dataset_path, 'RSICD','annotations', 'train_split.json'))
 
         for embed in embeddings['image_id']:
-            ann = coco.loadAnns(coco.getAnnIds(embed))
-            texts = [e['caption'] for e in ann]
+            #ann = coco.loadAnns(coco.getAnnIds(embed))
+            ann = loaded_dataset.load_annotations(loaded_dataset.get_annotation_ids(embed))
+
+            texts = [e['raw'] for e in ann]
             if text_only:
                 self.captions += texts[:5]
             else:
@@ -45,8 +54,6 @@ class CaptioningDataset(Dataset):
 
         else:
             self.embeddings = embeddings['image_embeddings']
-
-        print(len(self.embeddings), len(self.captions))
 
     def __len__(self):
         return len(self.embeddings)
@@ -69,7 +76,8 @@ class CaptioningDataset(Dataset):
 
 if __name__ == '__main__':
     #dataset = CaptioningDataset(f'embeddings/coco_openclip_train.pkl', text_only=True)
-    dataset = CaptioningDataset(f'embeddings/coco_train.pkl', text_only=False)
+    #dataset = CaptioningDataset(f'embeddings/coco_train.pkl', text_only=False)
+    dataset = CaptioningDataset(f'embeddings/rsicd_lora_val.pkl', text_only=True)
     # print(len(dataset))
     # print(dataset[:]['embeddings'])
     # print(dataset['embeddings'])

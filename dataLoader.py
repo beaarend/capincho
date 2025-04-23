@@ -43,12 +43,22 @@ class DatasetHandler(Generic[TImageId, TAnnotationId, TCategoryId]):
         return [img["imgid"] for img in self.dataset.get("images", [])]
     
     def get_annotation_ids(self, img_id: TImageId) -> list[TAnnotationId]:
-        return [ann["imgid"] for ann in self.dataset.get("annotations", []) if ann["imgid"] == img_id]
+        #return [ann["imgid"] for ann in self.dataset.get("annotations", []) if ann["imgid"] == img_id]
+        return [img_id]
     
     def load_images(self, ids: list[TImageId]) -> list[dict]:
         id_set = set(ids)
         return [img for img in self.dataset.get("images", []) if img["imgid"] in id_set]
     
     def load_annotations(self, ids: list[TAnnotationId]) -> list[dict]:
+        # id_set = set(ids)
+        # return [ann for ann in self.dataset.get("annotations", []) if ann["imgid"] in id_set]
+
+        # THIS ONLY WORKS FOR RSCID DATASET
+        
         id_set = set(ids)
-        return [ann for ann in self.dataset.get("annotations", []) if ann["imgid"] in id_set]
+        annotations = []
+        for image in self.dataset.get("images", []):
+            if image["imgid"] in id_set and "sentences" in image:
+                annotations.extend(image["sentences"])
+        return annotations

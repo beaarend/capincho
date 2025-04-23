@@ -9,6 +9,8 @@ outputs
 loss
 plots
 results
+results_coco
+results_rsicd
 temp.json
 output.txt
 earlyStopping.py
