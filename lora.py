@@ -27,9 +27,10 @@ class LoRAWrapper:
     def forward(self, batch):
         if self.encoder == 'text' or self.encoder == 'both':
             text_features = batch['texts_embeddings'].to(device, torch.float32)
-            c = random.randint(0, text_features.shape[1] - 1)
-            text_features = text_features[:, c, :]  
-            text_features = text_features.unsqueeze(1) 
+            # c = random.randint(0, text_features.shape[1] - 1)
+            # text_features = text_features[:, c, :]
+            # text_features = text_features.unsqueeze(1) 
+            text_features = text_features.mean(dim=1, keepdim=True)
             text_features, _ = self.textAdapter(text_features, text_features, text_features)
             text_features = text_features.squeeze(1)  
             text_features = text_features / text_features.norm(dim=1, keepdim=True)
@@ -46,11 +47,11 @@ class LoRAWrapper:
         return cosine_similarity
     
     def image_projection(self, embeddings):
-        self.eval()
+        self.foundation.backbone.eval()
         return self.imageAdapter(embeddings.to(device, torch.float32))
 
     def text_projection(self, embeddings):
-        self.eval()
+        self.foundation.backbone.eval()
         return self.textAdapter(embeddings.to(device, torch.float32))
 
     def train_epoch(self, train_loader, optim):
