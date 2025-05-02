@@ -52,16 +52,14 @@ if __name__ == '__main__':
 
     model.load_model()
 
-    if args.lora:
-        model = LoRAWrapper(model, encoder='both')
-        model.backbone.to(device)
+    # if args.lora:
+    #     model = LoRAWrapper(model, encoder='both')
+    #     model.backbone.to(device)
 
-    run_lora_training(model, args)
-    exit()
+    # run_lora_training(model, args)
+    # exit()
 
     model.backbone.eval()
-
-    
 
     if(args.dataset == 'coco'):
         new_dataset_path = dataset_path + 'COCO/'

@@ -8,7 +8,7 @@ from adapters import ContrastiveResidualAdapter, SigAdapter, MixerAdapter
 from tqdm import tqdm
 from torch.optim import Adam
 import foundation_models
-from embeddingsDataset import COCODataset
+from embeddingsDataset import EmbeddingDataset
 from earlyStopping import EarlyStopping
 from util import plot_curves
 device = torch.device("cuda:0" if torch.cuda.is_available() else "")
@@ -18,8 +18,8 @@ def run_training(save_path, batch_size, dataset, model, epochs, lr, patience, de
 
     dataset = 'embeddings/coco_train.pkl'
 
-    train_dataset = COCODataset(dataset)
-    val_dataset = COCODataset(dataset.replace('train', 'val'))
+    train_dataset = EmbeddingDataset(dataset)
+    val_dataset = EmbeddingDataset(dataset.replace('train', 'val'))
     train_loader, train_indices = train_dataset.get_loader(shuffle=False, batch_size=batch_size)
     val_loader, val_indices = val_dataset.get_loader(shuffle=False, batch_size=batch_size)
     # save_option = "best" if restore_best else "last"

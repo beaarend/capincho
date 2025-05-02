@@ -13,9 +13,10 @@ class LoRAWrapper:
         self.foundation = foundation
         self.encoder = encoder
 
-        temp_mha = MultiheadAttention(embed_dim, num_heads=8, batch_first=True)
-        self.textAdapter = PlainMultiHeadAttention(temp_mha).to(device)
-        self.imageAdapter = PlainMultiHeadAttention(temp_mha).to(device)
+        temp_text_mha = MultiheadAttention(embed_dim, num_heads=8, batch_first=True)
+        temp_image_mha = MultiheadAttention(embed_dim, num_heads=8, batch_first=True)
+        self.textAdapter = PlainMultiHeadAttention(temp_text_mha).to(device)
+        self.imageAdapter = PlainMultiHeadAttention(temp_image_mha).to(device)
 
     def __getattr__(self, name):
         foundation = object.__getattribute__(self, "foundation") 
