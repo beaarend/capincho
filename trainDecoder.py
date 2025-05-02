@@ -34,7 +34,6 @@ def train(epochs, batch_size, lr, filename, r, alpha, dropout, model_name, prefi
     model_size(decoder)
     learnable_parameters(decoder)
 
-    # if dataset == 'coco':
     if dataset == 'rsicd':
         train_data = CaptioningDataset(f'{filename}', text_only)
         val_name = filename.replace('train', 'val')

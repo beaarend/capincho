@@ -1,9 +1,9 @@
 import clip
 import numpy as np
 import torch
-from embeddingsDataset import COCODataset
+from embeddingsDataset import EmbeddingDataset
 from tqdm import tqdm
-from adapters import ContrastiveResidualAdapter, SigAdapter, DynamicContrastiveResidualAdapter
+from adapters import ContrastiveResidualAdapter, SigAdapter
 import matplotlib.pyplot as plt
 import clip
 try:
@@ -15,7 +15,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "")
 
 
 def evaluate_image_text(path, temperature, n=5, mode='one'):
-    dataset = COCODataset(path, n_captions=n)
+    dataset = EmbeddingDataset(path, n_captions=n)
     loader, indices = dataset.get_loader(batch_size=5000, shuffle=False)
     result = []
     for batch in loader:
@@ -47,47 +47,80 @@ def evaluate_image_text(path, temperature, n=5, mode='one'):
         return {'R@5': r5, 'R@10': r10, 'R@15': r15}
 
 
+
+# if __name__ == '__main__':
+#     model, _ = clip.load('ViT-L/14')
+#     results = {}
+#     mode = 'all'
+#     ratio = '1/5000' if mode == 'one' else '5/25000'
+#     title = f'COCO Retrieval with openclip COCA model'
+#     # result = evaluate_image_text('datasets_torchvision/embeddings/coco_ViTL_val.pkl',
+#     #                              model.logit_scale, mode=mode)
+#     # results['CLIP zero shot'] = result.values()
+#     paths = ['coco_coca_adapter_val.pkl', 'coco_coca_val.pkl', 'coco_cocaft_val.pkl']
+#     names = ['LORA']
+#     path = 'embeddings/rsicd_lora_val.pkl'
+
+#     for i, name in enumerate(paths):
+#         if 'adapter_' in name:
+#             if 'sig' in name:
+#                 adapter = SigAdapter(768, 0.2, torch.ones([]), torch.ones([]), ).to(device)
+
+#             else:
+#                 adapter = ContrastiveResidualAdapter(768, 0.2, model.logit_scale, False)
+
+#             checkpoint = torch.load(f'checkpoints/contrastive/coco_openclip_adapter.pt')
+#             adapter.load_state_dict(checkpoint['model_state_dict'])
+#             result = evaluate_image_text(f'embeddings/{name}',
+#                                          adapter.logit_scale, mode=mode)
+#         else:
+#             result = evaluate_image_text(f'embeddings/{name}',
+#                                          model.logit_scale, mode=mode)
+#         # result = evaluate_image_text(path, model.logit_scale, mode=mode)
+
+#     print(results)
+#     k_ints = []
+#     for k in result.keys():
+#         k_ints.append(int(k.split('@')[1]))
+
+#     for k, v in results.items():
+#         plt.plot(k_ints, v, '-o', label=k)
+
+#     plt.legend()
+#     plt.xlabel('k')
+#     plt.ylabel('R@k')
+#     plt.title(title)
+#     plt.show()
+
 if __name__ == '__main__':
     model, _ = clip.load('ViT-L/14')
+    mode = 'one'
+    title = f'RSICD Retrieval with LORA Adapter (ViT-L/14)'
+    path = 'embeddings/coco/coco_lora_train_VERDADEIRO.pkl'
+    label = 'RSICD (LORA)'
+
     results = {}
-    mode = 'all'
-    ratio = '1/5000' if mode == 'one' else '5/25000'
-    title = f'COCO Retrieval with openclip COCA model'
-    # result = evaluate_image_text('datasets_torchvision/embeddings/coco_ViTL_val.pkl',
-    #                              model.logit_scale, mode=mode)
-    # results['CLIP zero shot'] = result.values()
-    paths = ['coco_coca_adapter_val.pkl', 'coco_coca_val.pkl', 'coco_cocaft_val.pkl']
-    names = ['adapter', 'no finetune', 'finetune']
+    for t in [0.03, 0.07, 0.1, 0.15]:
+        result = evaluate_image_text(path, torch.tensor(t), mode='all')
+        results[f"T={t}"] = result
 
-    for i, name in enumerate(paths):
-        if 'adapter_' in name:
-            if 'sig' in name:
-                adapter = SigAdapter(768, 0.2, torch.ones([]), torch.ones([]), ).to(device)
+    # Print out the results nicely
+    print(f"{label}:")
+    for t, result in results.items():
+        print(f"{t}:")
+        for k, v in result.items():
+            print(f"  {k} = {v:.4f}")
 
-            else:
-                adapter = ContrastiveResidualAdapter(768, 0.2, model.logit_scale, False)
-
-            checkpoint = torch.load(f'checkpoints/contrastive/coco_openclip_adapter.pt')
-            adapter.load_state_dict(checkpoint['model_state_dict'])
-            result = evaluate_image_text(f'embeddings/{name}',
-                                         adapter.logit_scale, mode=mode)
-        else:
-            result = evaluate_image_text(f'embeddings/{name}',
-                                         model.logit_scale, mode=mode)
-
-        results[names[i]] = result.values()
-
-    print(results)
-    k_ints = []
-    for k in result.keys():
-        k_ints.append(int(k.split('@')[1]))
-
-    for k, v in results.items():
-        plt.plot(k_ints, v, '-o', label=k)
+    # Plot the results
+    for t, result in results.items():
+        k_ints = [int(k.split('@')[1]) for k in result.keys()]
+        values = list(result.values())
+        plt.plot(k_ints, values, '-o', label=f"{label} (T={t})")
 
     plt.legend()
     plt.xlabel('k')
     plt.ylabel('R@k')
     plt.title(title)
+    plt.ylim(0, 1.0)
+    plt.grid(True)
     plt.show()
-

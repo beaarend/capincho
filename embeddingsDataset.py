@@ -4,8 +4,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-
-class COCODataset(Dataset):
+class EmbeddingDataset(Dataset):
     def __init__(self, path, n_captions=5):
         assert os.path.exists(path), '{} does not exist'.format(path)
         self.text_embeddings = []
@@ -40,9 +39,9 @@ class COCODataset(Dataset):
 
 
 if __name__ == '__main__':
-    #dataset0 = COCODataset('embeddings/coco_openclip_val.pkl')
-    dataset = COCODataset('embeddings/coco_train.pkl')
-    #dataset2 = COCODataset('embeddings/coco_openclip_adapter_val.pkl')
+    #dataset0 = EmbeddingDataset('embeddings/coco_openclip_val.pkl')
+    dataset = EmbeddingDataset('embeddings/coco_train.pkl')
+    #dataset2 = EmbeddingDataset('embeddings/coco_openclip_adapter_val.pkl')
 
     # print(len(dataset[:]['image_embeddings']), len(dataset[:]['texts_embeddings']), len(dataset[:]['captions']))
     # print(len(dataset2[:]['image_embeddings']), len(dataset2[:]['texts_embeddings']), len(dataset2[:]['captions']))

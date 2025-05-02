@@ -6,6 +6,7 @@ from tqdm import tqdm
 import pickle
 import foundation_models
 from util import dataset_path
+from trainLoRA import run_lora_training
 
 from dataLoader import DatasetHandler
 
@@ -32,6 +33,10 @@ if __name__ == '__main__':
     parser.add_argument('--alpha', default=1, type=int, help='scaling (see LoRA paper)')
     parser.add_argument('--dropout_rate', default=0.25, type=float, help='dropout rate applied before the LoRA module')
 
+    parser.add_argument('--lr', default=2e-4, type=float)
+    parser.add_argument('--n_iters', default=500, type=int)
+    parser.add_argument('--batch_size', default=32, type=int)
+
     parser.add_argument('--dataset',type=str, default='rsicd', choices=['coco', 'rsicd'])
 
     parser.add_argument('--save_path', type=str, default='embeddings/rsicd_lora_train.pkl')
@@ -49,10 +54,14 @@ if __name__ == '__main__':
 
     if args.lora:
         model = LoRAWrapper(model, encoder='both')
-        list_lora_layers = apply_lora(args, model)
         model.backbone.to(device)
-        
+
+    run_lora_training(model, args)
+    exit()
+
     model.backbone.eval()
+
+    
 
     if(args.dataset == 'coco'):
         new_dataset_path = dataset_path + 'COCO/'

@@ -75,8 +75,8 @@ class Decoder(nn.Module):
         if type(self.model) == T5ForConditionalGeneration:
             model = 't5'
 
-        #embeddings = batch['embeddings'].to(dtype=self.fp)
-        embeddings = batch['image_embeddings'].to(dtype=self.fp)
+        embeddings = batch['embeddings'].to(dtype=self.fp)
+        #embeddings = batch['image_embeddings'].to(dtype=self.fp)
         embeddings = embeddings / embeddings.norm(dim=-1, keepdim=True)
 
         captions = batch['captions']

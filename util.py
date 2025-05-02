@@ -159,8 +159,8 @@ def get_lora_parameters(model, bias='none'):
             if 'lora_' in name:
                 params.append(param)
                 bias_name = name.split('lora_')[0] + 'bias'
-                if bias_name in model.state_dict():
-                    bias_param = dict(model.named_parameters())[bias_name]
+                if bias_name in model.backbone.state_dict():
+                    bias_param = dict(model.backbone.named_parameters())[bias_name]
                     params.append(bias_param)
         else:
             raise NotImplementedError
