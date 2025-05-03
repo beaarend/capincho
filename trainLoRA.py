@@ -7,7 +7,7 @@ import pickle
 from tqdm import tqdm
 import argparse
 import foundation_models
-import os
+import numpy as np
 
 import torch.nn as nn
 from torch.optim import Adam
@@ -21,26 +21,52 @@ from earlyStopping import EarlyStopping
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-def adapt_lora_embeddings(model, args, type, save_path):
+def adapt_lora_embeddings(model, args, split, save_path):
+    dataset_path = f'embeddings/rsicd_nolora_{split}.pkl'
+    dataset = EmbeddingDataset(dataset_path)
+    loader, indices = dataset.get_loader(shuffle=False, batch_size=args.batch_size)
 
-    if (type == 'val'):
-        dataset = EmbeddingDataset('embeddings/rsicd_nolora_val.pkl')
-        loader, indices = dataset.get_loader(shuffle=False, batch_size=args.batch_size)
-    else:
-        dataset = EmbeddingDataset('embeddings/rsicd_nolora_train.pkl')
-        loader, indices = dataset.get_loader(shuffle=False, batch_size=args.batch_size)
+    all_image_embeddings = []
+    all_text_embeddings = []
+    all_image_ids = []
+    all_image_names = []
+
+    model.foundation.backbone.eval()
 
     for batch in loader:
-        images = model.image_projection(batch['image_embeddings']).detach().cpu()
-        texts = model.text_projection(batch['texts_embeddings']).detach().cpu()
+        with torch.no_grad():
+            text_features = batch['texts_embeddings'].to(device, torch.float32)  # shape: [B, 5, 768]
+            B, N, D = text_features.shape
 
-        data = {'image_embeddings': images,
-                'texts_embeddings': texts,
-                'image_id': dataset[:]['image_id'],
-                'image_name': dataset[:]['image_name'],}
+            # Flatten for projection
+            text_features_flat = text_features.view(B * N, 1, D)
+            text_proj, _ = model.textAdapter(text_features_flat, text_features_flat, text_features_flat)
+            text_proj = text_proj.squeeze(1)
+            text_proj = text_proj / text_proj.norm(dim=1, keepdim=True)
+            text_proj = text_proj.view(B, N, D)  # shape back to [B, 5, 768]
 
-        with open(save_path, 'wb') as f:
-            pickle.dump(data, f)
+            image_features = batch['image_embeddings'].to(device, torch.float32).squeeze()
+            image_features = image_features.unsqueeze(1)
+            image_proj, _ = model.imageAdapter(image_features, image_features, image_features)
+            image_proj = image_proj.squeeze(1)
+            image_proj = image_proj / image_proj.norm(dim=1, keepdim=True)
+
+        all_image_embeddings.append(image_proj.cpu())
+        all_text_embeddings.append(text_proj.cpu())
+        all_image_ids.extend(batch['image_id'])
+        all_image_names.extend(batch['image_name'])
+
+    data = {
+        'image_embeddings': torch.cat(all_image_embeddings, dim=0),
+        'texts_embeddings': torch.cat(all_text_embeddings, dim=0),
+        'image_id': all_image_ids,
+        'image_name': all_image_names
+    }
+
+    with open(save_path, 'wb') as f:
+        pickle.dump(data, f)
+
+    print(f"Saved adapted embeddings to {save_path}")
 
 def run_lora_training(model, args, save_path):
 
@@ -52,11 +78,6 @@ def run_lora_training(model, args, save_path):
 
     for param in get_lora_parameters(model, bias='lora_only'): 
         param.requires_grad = True
-
-    for name, module in model.backbone.named_modules():
-        if "transformer.layers" in name and any(str(i) in name for i in [10, 11]):  # last 2 layers
-            for param in module.parameters():
-                param.requires_grad = True
  
     train_dataset = EmbeddingDataset('embeddings/rsicd_nolora_train.pkl')
     val_dataset = EmbeddingDataset('embeddings/rsicd_nolora_val.pkl')
@@ -67,7 +88,7 @@ def run_lora_training(model, args, save_path):
 
     adapter_params = list(model.textAdapter.parameters()) + list(model.imageAdapter.parameters())
     lora_params = list(get_lora_parameters(model, bias='lora_only'))
-    optim = torch.optim.Adam(lora_params + adapter_params, lr=args.lr, weight_decay=1e-4)
+    optim = torch.optim.Adam(lora_params + adapter_params + [model.logit_scale], lr=args.lr, weight_decay=1e-4)
 
     early_stopper = EarlyStopping(patience=20, minimal_improvement=0.001, objective='minimize', save_option='best', save_path=save_path +'/best_model.pt')
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, 'min', patience=5, factor=0.1, verbose=True)
@@ -85,6 +106,10 @@ def run_lora_training(model, args, save_path):
             print("Early stopping triggered.")
             break
 
+        with torch.no_grad():
+            model.logit_scale.data.clamp_(0, np.log(100))
+        print(f"logit_scale raw: {model.logit_scale.item():.4f}, exp: {model.logit_scale.exp().item():.4f}")
+
         train_losses.append(train_loss)
         val_losses.append(val_loss)
 
@@ -99,7 +124,8 @@ def run_lora_training(model, args, save_path):
     
     new_train_embeddings = 'embeddings/rsicd_lora_train.pkl'
     new_val_embeddings = 'embeddings/rsicd_lora_val.pkl'
-    #adapt_lora_embeddings(model, args, 'train', new_train_embeddings)
+    adapt_lora_embeddings(model, args, 'train', new_train_embeddings)
+    adapt_lora_embeddings(model, args, 'val', new_val_embeddings)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -119,44 +145,25 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # model_dict = {'coca': foundation_models.OpenCoCa,
-    #               'clip': foundation_models.CLIP,
-    #               'openclip': foundation_models.OpenCLIP,
-    #               'capivara': foundation_models.Capivara}
-    
-    # model = model_dict[args.model](device)
-
-    # model.load_model()
-
-    # model = LoRAWrapper(model, encoder='both')
-    # model.backbone.to(device)
-    # run_lora_training(model, args, save_path='results_rsicd/training')
-    # model.backbone.eval()
-
-    # Define combinations
     combinations = [
-        {'position': 'bottom', 'params': ['q'], 'lr': 2e-4, 'dropout_rate': 0.25, 'r': 2},
-        {'position': 'mid',    'params': ['q', 'k'], 'lr': 1e-4, 'dropout_rate': 0.3, 'r': 4},
-        {'position': 'up',     'params': ['q', 'k', 'v'], 'lr': 5e-5, 'dropout_rate': 0.1, 'r': 8},
+        {'position': 'all', 'params': ['q', 'k', 'v', 'o'], 'lr': 2e-4, 'dropout_rate': 0.25, 'r': 4, 'alpha': 1},
+        #{'position': 'all', 'params': ['q', 'k', 'v', 'o'], 'lr': 1e-4, 'dropout_rate': 0.5, 'r': 2, 'alpha': 1},
     ]
 
     for combo in combinations:
-        args = parser.parse_args([])  # Start fresh for each combination
+        args = parser.parse_args([])  
 
-        # Set shared/default args
         args.model = 'openclip'
         args.encoder = 'both'
-        args.n_iters = 200
+        args.n_iters = 300
         args.batch_size = 32
 
-        # Set from combination
         args.position = combo['position']
         args.params = combo['params']
         args.lr = combo['lr']
         args.dropout_rate = combo['dropout_rate']
         args.r = combo['r']
 
-        # Build a unique directory name based on the combination
         param_str = f"pos_{args.position}_params_{'-'.join(args.params)}_lr_{args.lr}_r_{args.r}_drop_{args.dropout_rate}"
         save_path = os.path.join('results_rsicd/training', param_str)
         os.makedirs(save_path, exist_ok=True)
