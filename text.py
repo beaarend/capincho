@@ -1,51 +1,46 @@
 import torch
+import pickle
 from embeddingsDataset import EmbeddingDataset
-# checkpoint = torch.load('results/adapter2/checkpoint.pt')
-# print(checkpoint.keys())
 
-# print(checkpoint['model_state_dict'].keys())
+embed_lora = EmbeddingDataset('embeddings/rsicd_lora_train.pkl')
+embed_base = EmbeddingDataset('embeddings/rsicd_nolora_train.pkl')
 
-# dict_keys(['epoch', 'model_state_dict', 'optimizer_state_dict', 'loss'])
-# odict_keys(['logit_scale', 'imageAdapter.residual', 'imageAdapter.model.0.weight', 'imageAdapter.model.0.bias', 
-#             'imageAdapter.model.2.weight', 'imageAdapter.model.2.bias', 'textAdapter.residual', 'textAdapter.model.0.weight', 
-#             'textAdapter.model.0.bias', 'textAdapter.model.2.weight', 'textAdapter.model.2.bias'])
+# Load embeddings and convert them to tensors
+if isinstance(embed_lora.images, torch.Tensor):
+    images_lora = embed_lora.images  # Already a tensor
+else:
+    images_lora = torch.stack(embed_lora.images)  # Stack if it's a list of tensors
 
-# checkpoint = torch.load('/mnt/d/new_results/capinchoDecoder/checkpoint.pt')
-# print(checkpoint.keys())
+if isinstance(embed_base.images, torch.Tensor):
+    images_base = embed_base.images  # Already a tensor
+else:
+    images_base = torch.stack(embed_base.images)  # Stack if it's a list of tensors
 
-# print(checkpoint['model_state_dict'].keys())
-
-# checkpoint = torch.load('results/lora/checkpoint.pt')
-# print(checkpoint.keys())
-
-# print(checkpoint['model_state_dict'].keys())
-
-
-embed_lora = EmbeddingDataset('embeddings/coco/coco_lora_train_VERDADEIRO.pkl')
-embed_base = EmbeddingDataset('embeddings/coco/coco_train.pkl')
-
-# Stack image embeddings into tensors
-images_lora = torch.stack(embed_lora.images)   # shape: (N, D)
-images_base = torch.stack(embed_base.images)   # shape: (N, D)
-
-# Normalize both for cosine similarity
+# Normalize embeddings
 images_lora = images_lora / images_lora.norm(dim=-1, keepdim=True)
 images_base = images_base / images_base.norm(dim=-1, keepdim=True)
 
-print(embed_lora.images[0][0:5])
-print(embed_base.images[0][0:5])
+# Calculate cosine similarity in batches
+batch_size = 64  # Adjust this batch size depending on your available memory
+num_batches = (images_lora.size(0) + batch_size - 1) // batch_size  # To handle the last smaller batch
 
-texts_lora = torch.cat([torch.stack(t) for t in embed_lora.text_embeddings])
-texts_base = torch.cat([torch.stack(t) for t in embed_base.text_embeddings])
+cos_sim_sum = 0.0  # To accumulate cosine similarities
+num_elements = 0  # To accumulate the number of elements for averaging
 
-texts_lora = texts_lora / texts_lora.norm(dim=-1, keepdim=True)
-texts_base = texts_base / texts_base.norm(dim=-1, keepdim=True)
+for i in range(num_batches):
+    start_idx = i * batch_size
+    end_idx = min((i + 1) * batch_size, images_lora.size(0))  # Ensure last batch is handled properly
 
-cos_sim_texts = torch.nn.functional.cosine_similarity(texts_lora, texts_base, dim=-1)
-print(f"Mean cosine similarity between LORA and BASE text embeddings: {cos_sim_texts.mean():.6f}")
+    batch_images_lora = images_lora[start_idx:end_idx]
+    batch_images_base = images_base[start_idx:end_idx]
 
-# Cosine similarity between each corresponding pair
-cos_sim = torch.nn.functional.cosine_similarity(images_lora, images_base, dim=-1)
+    # Calculate cosine similarity for the batch
+    cos_sim_batch = torch.nn.functional.cosine_similarity(batch_images_lora, batch_images_base, dim=-1)
 
-# Average similarity
-print(f"Mean cosine similarity between LORA and BASE image embeddings: {cos_sim.mean():.6f}")
+    # Update the sum of cosine similarities and count of elements
+    cos_sim_sum += cos_sim_batch.sum().item()
+    num_elements += cos_sim_batch.size(0)
+
+# Compute and print the average cosine similarity
+mean_cos_sim = cos_sim_sum / num_elements
+print(f"Mean cosine similarity between LORA and BASE image embeddings: {mean_cos_sim:.6f}")

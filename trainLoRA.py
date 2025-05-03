@@ -13,37 +13,53 @@ import torch.nn as nn
 from torch.optim import Adam
 
 from embeddingsDataset import EmbeddingDataset
+from dataLoader import DatasetHandler
 from util import plot_curves, apply_lora, get_lora_parameters
 from lora import LoRAWrapper
 
 from earlyStopping import EarlyStopping
 
+from util import dataset_path
+
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def adapt_lora_embeddings(model, args, split, save_path):
-    dataset_path = f'embeddings/rsicd_nolora_{split}.pkl'
-    dataset = EmbeddingDataset(dataset_path)
+    embed_path = f'embeddings/rsicd_nolora_{split}.pkl'
+    captions_json = os.path.join(dataset_path, 'RSICD/annotations', f'{split}_split.json')
+
+    dataset = EmbeddingDataset(embed_path)
     loader, indices = dataset.get_loader(shuffle=False, batch_size=args.batch_size)
+
+    handler = DatasetHandler(captions_json)
+    image_ids = handler.get_image_ids()
+
+    id_to_captions = {}
+    for img in handler.dataset['images']:
+        img_id = img['imgid']
+        sentences = img.get('sentences', [])
+        captions = [sent['raw'] for sent in sentences][:5]
+        if len(captions) < 5:
+            captions += [""] * (5 - len(captions))
+        id_to_captions[img_id] = captions
 
     all_image_embeddings = []
     all_text_embeddings = []
     all_image_ids = []
     all_image_names = []
+    all_captions = []
 
     model.foundation.backbone.eval()
 
-    for batch in loader:
+    for batch in tqdm(loader, desc="Adapting embeddings"):
         with torch.no_grad():
-            text_features = batch['texts_embeddings'].to(device, torch.float32)  # shape: [B, 5, 768]
+            text_features = batch['texts_embeddings'].to(device, torch.float32)
             B, N, D = text_features.shape
-
-            # Flatten for projection
             text_features_flat = text_features.view(B * N, 1, D)
             text_proj, _ = model.textAdapter(text_features_flat, text_features_flat, text_features_flat)
             text_proj = text_proj.squeeze(1)
             text_proj = text_proj / text_proj.norm(dim=1, keepdim=True)
-            text_proj = text_proj.view(B, N, D)  # shape back to [B, 5, 768]
+            text_proj = text_proj.view(B, N, D)
 
             image_features = batch['image_embeddings'].to(device, torch.float32).squeeze()
             image_features = image_features.unsqueeze(1)
@@ -53,20 +69,36 @@ def adapt_lora_embeddings(model, args, split, save_path):
 
         all_image_embeddings.append(image_proj.cpu())
         all_text_embeddings.append(text_proj.cpu())
-        all_image_ids.extend(batch['image_id'])
+
+        # Convert image IDs to int
+        image_ids_int = [int(i) if isinstance(i, torch.Tensor) else i for i in batch['image_id']]
+        all_image_ids.extend(image_ids_int)
+
+        # Confirm image names are strings
+        for name in batch['image_name']:
+            assert isinstance(name, str), f"Invalid image_name type: {type(name)}"
         all_image_names.extend(batch['image_name'])
+
+        # Fetch and validate captions
+        for img_id in image_ids_int:
+            captions = id_to_captions.get(img_id, [""] * 5)
+            assert isinstance(captions, list) and all(isinstance(c, str) for c in captions), \
+                f"Invalid captions for image_id {img_id}: {captions}"
+            all_captions.append(captions)
 
     data = {
         'image_embeddings': torch.cat(all_image_embeddings, dim=0),
         'texts_embeddings': torch.cat(all_text_embeddings, dim=0),
         'image_id': all_image_ids,
-        'image_name': all_image_names
+        'image_name': all_image_names,
+        'captions': all_captions
     }
 
     with open(save_path, 'wb') as f:
         pickle.dump(data, f)
 
-    print(f"Saved adapted embeddings to {save_path}")
+    print(f"Saved adapted embeddings with captions to {save_path}")
+
 
 def run_lora_training(model, args, save_path):
 

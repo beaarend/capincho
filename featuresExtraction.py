@@ -66,6 +66,8 @@ if __name__ == '__main__':
     elif(args.dataset == 'rsicd'):
         new_dataset_path = dataset_path + 'RSICD/'
 
+    
+
     #coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_{args.split}2017.json')
     #loaded_dataset = COCO(os.path.join(dataset_path, 'COCO', 'annotations', f'captions_{args.split}2017.json'))
     loaded_dataset = DatasetHandler(os.path.join(new_dataset_path, 'annotations', f'{args.split}_split.json'))

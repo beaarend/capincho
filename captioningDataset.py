@@ -15,11 +15,11 @@ class CaptioningDataset(Dataset):
 
         with open(embeddings_path, 'rb') as f:
             embeddings = pickle.load(f)
+            # print("Keys in embeddings:", embeddings.keys())
+            # print("Example image_id list:", embeddings.get('image_id', 'MISSING'))
         
         self.embeddings = []
         self.captions = []
-
-        assert len(self.embeddings) == len(self.captions), "Mismatch between embeddings and captions length"
 
         # captions
         if 'val' in embeddings_path:
@@ -42,6 +42,10 @@ class CaptioningDataset(Dataset):
             else:
                 self.captions.append(texts[:5])
 
+            # print("Image ID:", embed)
+            # print("Ann IDs:", loaded_dataset.get_annotation_ids(embed))
+            # print("Annotations:", loaded_dataset.load_annotations(loaded_dataset.get_annotation_ids(embed)))
+
         # embeddings
         if text_only:
             if not torch.is_tensor(embeddings['texts_embeddings']):
@@ -55,13 +59,19 @@ class CaptioningDataset(Dataset):
         else:
             self.embeddings = embeddings['image_embeddings']
 
+        # print("Embeddings shape:", self.embeddings.shape if hasattr(self.embeddings, 'shape') else len(self.embeddings))
+        # print("Captions length:", len(self.captions))
+        assert len(self.embeddings) == len(self.captions), f"Mismatch: {len(self.embeddings)} embeddings vs {len(self.captions)} captions"
+
     def __len__(self):
         return len(self.embeddings)
 
     def __getitem__(self, index):
-        if self.text_only:
+        if self.text_only or isinstance(self.captions[index], str):
             return {'embeddings': self.embeddings[index].unsqueeze(0), 'captions': self.captions[index]}
         else:
+            if index >= len(self.captions):
+                print(f"IndexError: index {index} out of range for captions length {len(self.captions)}")
             r = random.randint(0, 4)
             return {'embeddings': self.embeddings[index], 'captions': self.captions[index][r]}
 

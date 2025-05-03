@@ -107,6 +107,7 @@ class PlainMultiHeadAttention(nn.Module):
                 query, key, value = [x.transpose(1, 0) for x in (query, key, value)]
 
         tgt_len, bsz, embed_dim = query.shape
+
         src_len, _, _ = key.shape
 
         E = query.size(-1)
