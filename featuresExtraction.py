@@ -69,7 +69,7 @@ if __name__ == '__main__':
     
 
     #coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_{args.split}2017.json')
-    #loaded_dataset = COCO(os.path.join(dataset_path, 'COCO', 'annotations', f'captions_{args.split}2017.json'))
+    # loaded_dataset = COCO(os.path.join(dataset_path, 'COCO', 'annotations', f'captions_{args.split}2017.json'))
     loaded_dataset = DatasetHandler(os.path.join(new_dataset_path, 'annotations', f'{args.split}_split.json'))
 
     ids = loaded_dataset.get_image_ids()

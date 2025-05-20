@@ -76,9 +76,6 @@ class LoRALayer():
         lora_name = self.params_with_lora[param_name]
         return self.transpose((eval(f'self.{lora_name}_lora_B') @ eval(f'self.{lora_name}_lora_A')).view(eval(f'self.{param_name}').shape))
 
-    
-   
-    
     def merge_lora_param(self):
         r"""p_new = p + scaling * B @ A and keep differentiable to A and B"""
         for param_name, lora_name in self.params_with_lora.items():
@@ -183,7 +180,6 @@ class LinearLoRA(nn.Linear, LoRALayer):
     def train(self, mode: bool = True):
         super().train(mode)     
         self.lora_train(mode)
-
         
     def forward(self, x: torch.Tensor, **kwargs):
         
@@ -367,7 +363,6 @@ class PlainMultiheadAttentionLoRA(nn.Module):
 
         # Initialize parameters
         with torch.no_grad():
-            
             # Extract the existing weights and biases
             existing_weight = existing_mha.in_proj_weight.data
             existing_bias = existing_mha.in_proj_bias.data if existing_mha.in_proj_bias is not None else None
@@ -393,7 +388,6 @@ class PlainMultiheadAttentionLoRA(nn.Module):
                 self.proj.bias.data.copy_(existing_mha.out_proj.bias.data)
 
         self.scaled_dot_product_attention = F.scaled_dot_product_attention
-        
         
         LoRALayer.__init__(self, r=r, lora_alpha=lora_alpha, dropout_rate=dropout_rate)
         
@@ -520,7 +514,7 @@ class PlainMultiheadAttentionLoRA(nn.Module):
 
     def train(self, mode: bool = True):
         super().train(mode)
-        #self.lora_train(mode)  
+        # self.lora_train(mode)  
 
     def forward(self,
             query: torch.Tensor,
@@ -531,8 +525,6 @@ class PlainMultiheadAttentionLoRA(nn.Module):
 
         return self.forward_module(query, key, value, **kwargs) 
         
-
-
 class MergedLinear(nn.Linear, LoRALayer):
     # LoRA implemented in a dense layer
     def __init__(
@@ -598,3 +590,4 @@ class MergedLinear(nn.Linear, LoRALayer):
             return result
         else:
             return nn.Linear.forward(self, x, **kwargs)
+        

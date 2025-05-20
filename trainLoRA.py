@@ -24,81 +24,140 @@ from util import dataset_path
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-def adapt_lora_embeddings(model, args, split, save_path):
-    embed_path = f'embeddings/rsicd_nolora_{split}.pkl'
-    captions_json = os.path.join(dataset_path, 'RSICD/annotations', f'{split}_split.json')
+# def adapt_lora_embeddings_old(model, args, split, save_path, dataset):
 
-    dataset = EmbeddingDataset(embed_path)
-    loader, indices = dataset.get_loader(shuffle=False, batch_size=args.batch_size)
+#     if(dataset == 'rsicd'):
+#         embed_path = f'embeddings/rsicd_nolora_{split}.pkl'
+#         captions_json = os.path.join(dataset_path, 'RSICD/annotations', f'{split}_split.json')
 
-    handler = DatasetHandler(captions_json)
-    image_ids = handler.get_image_ids()
+#         handler = DatasetHandler(captions_json)
+#         image_ids = handler.get_image_ids()
 
-    id_to_captions = {}
-    for img in handler.dataset['images']:
-        img_id = img['imgid']
-        sentences = img.get('sentences', [])
-        captions = [sent['raw'] for sent in sentences][:5]
-        if len(captions) < 5:
-            captions += [""] * (5 - len(captions))
-        id_to_captions[img_id] = captions
+#         id_to_captions = {}
+#         for img in handler.dataset['images']:
+#             img_id = img['imgid']
+#             sentences = img.get('sentences', [])
+#             captions = [sent['raw'] for sent in sentences][:5]
+#             if len(captions) < 5:
+#                 captions += [""] * (5 - len(captions))
+#             id_to_captions[img_id] = captions
 
-    all_image_embeddings = []
-    all_text_embeddings = []
-    all_image_ids = []
-    all_image_names = []
-    all_captions = []
+#     if(dataset == 'coco'):
+#         captions_json = os.path.join(dataset_path, 'COCO', 'annotations', f'captions_{split}2017.json')
+#         embed_path = f'embeddings/coco/coco_{split}.pkl'
 
-    model.foundation.backbone.eval()
+#         with open(captions_json, 'r') as f:
+#             coco_data = json.load(f)
 
-    for batch in tqdm(loader, desc="Adapting embeddings"):
-        with torch.no_grad():
-            text_features = batch['texts_embeddings'].to(device, torch.float32)
-            B, N, D = text_features.shape
-            text_features_flat = text_features.view(B * N, 1, D)
-            text_proj, _ = model.textAdapter(text_features_flat, text_features_flat, text_features_flat)
-            text_proj = text_proj.squeeze(1)
-            text_proj = text_proj / text_proj.norm(dim=1, keepdim=True)
-            text_proj = text_proj.view(B, N, D)
+#         # image_id -> list of captions
+#         id_to_captions = {}
+#         for ann in coco_data['annotations']:
+#             img_id = ann['image_id']
+#             caption = ann['caption']
+#             if img_id not in id_to_captions:
+#                 id_to_captions[img_id] = []
+#             id_to_captions[img_id].append(caption)
 
-            image_features = batch['image_embeddings'].to(device, torch.float32).squeeze()
-            image_features = image_features.unsqueeze(1)
-            image_proj, _ = model.imageAdapter(image_features, image_features, image_features)
-            image_proj = image_proj.squeeze(1)
-            image_proj = image_proj / image_proj.norm(dim=1, keepdim=True)
+#         # pad/truncate to 5 captions each
+#         for img_id in id_to_captions:
+#             captions = id_to_captions[img_id]
+#             if len(captions) < 5:
+#                 captions += [""] * (5 - len(captions))
+#             else:
+#                 captions = captions[:5]
+#             id_to_captions[img_id] = captions
 
-        all_image_embeddings.append(image_proj.cpu())
-        all_text_embeddings.append(text_proj.cpu())
+#     embed_dataset = EmbeddingDataset(embed_path)
+#     loader, indices = embed_dataset.get_loader(shuffle=False, batch_size=args.batch_size)
 
-        # Convert image IDs to int
-        image_ids_int = [int(i) if isinstance(i, torch.Tensor) else i for i in batch['image_id']]
-        all_image_ids.extend(image_ids_int)
+#     all_image_embeddings = []
+#     all_text_embeddings = []
+#     all_image_ids = []
+#     all_image_names = []
+#     all_captions = []
 
-        # Confirm image names are strings
-        for name in batch['image_name']:
-            assert isinstance(name, str), f"Invalid image_name type: {type(name)}"
-        all_image_names.extend(batch['image_name'])
+#     model.foundation.backbone.eval()
 
-        # Fetch and validate captions
-        for img_id in image_ids_int:
-            captions = id_to_captions.get(img_id, [""] * 5)
-            assert isinstance(captions, list) and all(isinstance(c, str) for c in captions), \
-                f"Invalid captions for image_id {img_id}: {captions}"
-            all_captions.append(captions)
+#     for batch in tqdm(loader, desc="Adapting embeddings"):
+#         with torch.no_grad():
+#             text_features = batch['texts_embeddings'].to(device, torch.float32)
+#             B, N, D = text_features.shape
+#             text_features_flat = text_features.view(B * N, 1, D)
+#             text_proj, _ = model.textAdapter(text_features_flat, text_features_flat, text_features_flat)
+#             text_proj = text_proj.squeeze(1)
+#             text_proj = text_proj / text_proj.norm(dim=1, keepdim=True)
+#             text_proj = text_proj.view(B, N, D)
+
+#             image_features = batch['image_embeddings'].to(device, torch.float32).squeeze()
+#             image_features = image_features.unsqueeze(1)
+#             image_proj, _ = model.imageAdapter(image_features, image_features, image_features)
+#             image_proj = image_proj.squeeze(1)
+#             image_proj = image_proj / image_proj.norm(dim=1, keepdim=True)
+
+#         all_image_embeddings.append(image_proj.cpu())
+#         all_text_embeddings.append(text_proj.cpu())
+
+#         # Convert image IDs to int
+#         image_ids_int = [int(i) if isinstance(i, torch.Tensor) else i for i in batch['image_id']]
+#         all_image_ids.extend(image_ids_int)
+
+#         # Confirm image names are strings
+#         for name in batch['image_name']:
+#             assert isinstance(name, str), f"Invalid image_name type: {type(name)}"
+#         all_image_names.extend(batch['image_name'])
+
+#         # Fetch and validate captions
+#         for img_id in image_ids_int:
+#             captions = id_to_captions.get(img_id, [""] * 5)
+#             assert isinstance(captions, list) and all(isinstance(c, str) for c in captions), \
+#                 f"Invalid captions for image_id {img_id}: {captions}"
+#             all_captions.append(captions)
+
+#     data = {
+#         'image_embeddings': torch.cat(all_image_embeddings, dim=0),
+#         'texts_embeddings': torch.cat(all_text_embeddings, dim=0),
+#         'image_id': all_image_ids,
+#         'image_name': all_image_names,
+#         'captions': all_captions
+#     }
+
+#     with open(save_path, 'wb') as f:
+#         pickle.dump(data, f)
+
+#     print(f"Saved adapted embeddings with captions to {save_path}")
+
+def adapt_lora_embeddings(model, args, split, save_path, dataset):
+    loaded_dataset = EmbeddingDataset(f'embeddings/{dataset}_nolora_{split}.pkl')
+    loader, index = loaded_dataset.get_loader(shuffle=False, batch_size=args.batch_size)
+
+    all_images = []
+    all_texts = []
+    all_ids = []
+    all_names = []
+
+    for batch in loader:
+        images, _ = model.image_projection(batch['image_embeddings'])
+        images = images.detach().cpu()
+
+        texts, _ = model.text_projection(batch['texts_embeddings'])
+        texts = texts.detach().cpu()
+
+        all_images.extend(images)
+        all_texts.extend(texts)
+        all_ids.extend([int(i) for i in batch['image_id']])
+        all_names.extend([str(name) for name in batch['image_name']])
 
     data = {
-        'image_embeddings': torch.cat(all_image_embeddings, dim=0),
-        'texts_embeddings': torch.cat(all_text_embeddings, dim=0),
-        'image_id': all_image_ids,
-        'image_name': all_image_names,
-        'captions': all_captions
+        'image_embeddings': all_images,
+        'texts_embeddings': all_texts,
+        'image_id': all_ids,
+        'image_name': all_names,
     }
 
     with open(save_path, 'wb') as f:
         pickle.dump(data, f)
 
-    print(f"Saved adapted embeddings with captions to {save_path}")
-
+    print(f"Saved adapted embeddings to {save_path}")
 
 def run_lora_training(model, args, save_path):
 
@@ -111,10 +170,15 @@ def run_lora_training(model, args, save_path):
     for param in get_lora_parameters(model, bias='lora_only'): 
         param.requires_grad = True
  
-    train_dataset = EmbeddingDataset('embeddings/rsicd_nolora_train.pkl')
-    val_dataset = EmbeddingDataset('embeddings/rsicd_nolora_val.pkl')
-    train_loader, train_indices = train_dataset.get_loader(shuffle=False, batch_size=args.batch_size)
-    val_loader, val_indices = val_dataset.get_loader(shuffle=False, batch_size=args.batch_size)
+    if(args.dataset == 'coco'):
+        train_dataset = EmbeddingDataset('embeddings/coco/coco_train.pkl')
+        val_dataset = EmbeddingDataset('embeddings/coco/coco_val.pkl')
+    if(args.dataset == 'rsicd'):
+        train_dataset = EmbeddingDataset('embeddings/rsicd_nolora_train.pkl')
+        val_dataset = EmbeddingDataset('embeddings/rsicd_nolora_val.pkl')
+
+    train_loader, train_indices = train_dataset.get_loader(shuffle=True, batch_size=args.batch_size)
+    val_loader, val_indices = val_dataset.get_loader(shuffle=True, batch_size=args.batch_size)
     train_losses = []
     val_losses = []
 
@@ -154,10 +218,17 @@ def run_lora_training(model, args, save_path):
     with open(os.path.join(save_path, 'loss_log.pkl'), 'wb') as f:
         pickle.dump(log, f)
     
-    new_train_embeddings = 'embeddings/rsicd_lora_train.pkl'
-    new_val_embeddings = 'embeddings/rsicd_lora_val.pkl'
-    adapt_lora_embeddings(model, args, 'train', new_train_embeddings)
-    adapt_lora_embeddings(model, args, 'val', new_val_embeddings)
+    exit()
+
+    if(args.dataset == 'coco'):
+        new_train_embeddings = 'embeddings/coco/coco_lora_train_1.pkl'
+        new_val_embeddings = 'embeddings/coco/coco_lora_val_1.pkl'
+    if(args.dataset == 'rsicd'):
+        new_train_embeddings = 'embeddings/rsicd_lora_train_3.pkl'
+        new_val_embeddings = 'embeddings/rsicd_lora_val_3.pkl'
+
+    adapt_lora_embeddings(model, args, 'train', new_train_embeddings, args.dataset)
+    adapt_lora_embeddings(model, args, 'val', new_val_embeddings, args.dataset)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -173,13 +244,17 @@ if __name__ == '__main__':
 
     parser.add_argument('--lr', default=2e-4, type=float)
     parser.add_argument('--n_iters', default=500, type=int)
-    parser.add_argument('--batch_size', default=32, type=int)
+    parser.add_argument('--batch_size', default=16, type=int)
+
+    parser.add_argument('--dataset', default='coco', choices=['coco', 'rsicd'], type=str)
 
     args = parser.parse_args()
 
     combinations = [
-        {'position': 'all', 'params': ['q', 'k', 'v', 'o'], 'lr': 2e-4, 'dropout_rate': 0.25, 'r': 4, 'alpha': 1},
-        #{'position': 'all', 'params': ['q', 'k', 'v', 'o'], 'lr': 1e-4, 'dropout_rate': 0.5, 'r': 2, 'alpha': 1},
+        {'position': 'all', 'params': ['q', 'k', 'v', 'o'], 'lr': 2e-4, 'dropout_rate': 0.2, 'r': 8, 'alpha': 16},
+        {'position': 'all', 'params': ['q', 'k', 'v', 'o'], 'lr': 5e-5, 'dropout_rate': 0.2, 'r': 8, 'alpha': 8},
+        # {'position': 'all', 'params': ['o'], 'lr': 1e-4, 'dropout_rate': 0.1, 'r': 4, 'alpha': 4},
+        # {'position': 'all', 'params': ['k', 'v'], 'lr': 1e-4, 'dropout_rate': 0.3, 'r': 4, 'alpha': 8},
     ]
 
     for combo in combinations:
@@ -197,7 +272,7 @@ if __name__ == '__main__':
         args.r = combo['r']
 
         param_str = f"pos_{args.position}_params_{'-'.join(args.params)}_lr_{args.lr}_r_{args.r}_drop_{args.dropout_rate}"
-        save_path = os.path.join('results_rsicd/training', param_str)
+        save_path = os.path.join(f'results_{args.dataset}', 'training', param_str)
         os.makedirs(save_path, exist_ok=True)
 
         print(f"\nRunning combination: {param_str}")

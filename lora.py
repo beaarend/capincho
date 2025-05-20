@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from projectionHeads import PlainMultiHeadAttention
+from lora_layers import PlainMultiheadAttentionLoRA
 from torch.nn import MultiheadAttention
 import numpy as np
 from embeddingsDataset import EmbeddingDataset
@@ -15,8 +16,8 @@ class LoRAWrapper:
 
         temp_text_mha = MultiheadAttention(embed_dim, num_heads=8, batch_first=True)
         temp_image_mha = MultiheadAttention(embed_dim, num_heads=8, batch_first=True)
-        self.textAdapter = PlainMultiHeadAttention(temp_text_mha).to(device)
-        self.imageAdapter = PlainMultiHeadAttention(temp_image_mha).to(device)
+        self.textAdapter = PlainMultiheadAttentionLoRA(temp_text_mha).to(device)
+        self.imageAdapter = PlainMultiheadAttentionLoRA(temp_image_mha).to(device)
         self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
 
     def __getattr__(self, name):
@@ -50,11 +51,11 @@ class LoRAWrapper:
     
     def image_projection(self, embeddings):
         self.foundation.backbone.eval()
-        return self.imageAdapter(embeddings.to(device, torch.float32))
+        return self.imageAdapter(embeddings.to(device, torch.float32), embeddings.to(device, torch.float32), embeddings.to(device, torch.float32))
 
     def text_projection(self, embeddings):
         self.foundation.backbone.eval()
-        return self.textAdapter(embeddings.to(device, torch.float32))
+        return self.textAdapter(embeddings.to(device, torch.float32), embeddings.to(device, torch.float32), embeddings.to(device, torch.float32))
     
     def train_epoch(self, train_loader, optim):
         self.foundation.backbone.train()
@@ -120,3 +121,4 @@ class LoRAWrapper:
                         print(f"Image {j} vs Text {k}: {cos_sim[j, k].item():.4f}")
 
         return np.mean(epoch_losses)
+    

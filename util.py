@@ -117,16 +117,49 @@ def split_sentence(sentence, limit):
 #  This code is adapted from CLIP-LoRA (https://github.com/MaxZanella/CLIP-LoRA) by Max Zanella.
 #  ------------------------------------------------------------------------------------------
 
+# def apply_lora(args, clip_model):
+#     list_lora_layers = []
+#     if args.encoder == 'text' or args.encoder == 'both':
+#         indices = INDEX_POSITIONS_TEXT[args.position]
+#         text_encoder = clip_model.backbone.transformer
+#         for i, block in enumerate(text_encoder.resblocks):
+#             #print(f"Residual Attention Block {i}: {block}")
+#             if i in indices:
+#                 for name, submodule in block.named_children():
+#                     if isinstance(submodule, nn.MultiheadAttention):
+#                         new_multi_head_lora = PlainMultiheadAttentionLoRA(
+#                             submodule, enable_lora=args.params, r=args.r, lora_alpha=args.alpha, dropout_rate=args.dropout_rate)
+#                         setattr(block, name, new_multi_head_lora)
+#                         list_lora_layers.append(new_multi_head_lora)
+
+#     if args.encoder == 'vision' or args.encoder == 'both':
+#         indices = INDEX_POSITIONS_VISION[args.backbone][args.position]
+#         vision_encoder = clip_model.backbone.visual.transformer
+#         for i, block in enumerate(vision_encoder.resblocks):
+#             #print(f"Residual Attention Block {i}: {block}")
+#             if i in indices:
+#                 for name, submodule in block.named_children():
+#                     if isinstance(submodule, nn.MultiheadAttention):
+#                         new_multi_head_lora = PlainMultiheadAttentionLoRA(
+#                             submodule, enable_lora=args.params, r=args.r, lora_alpha=args.alpha, dropout_rate=args.dropout_rate)
+#                         setattr(block, name, new_multi_head_lora)
+#                         list_lora_layers.append(new_multi_head_lora)
+#     return list_lora_layers
+
 def apply_lora(args, clip_model):
     list_lora_layers = []
+
+    # print(f"Applying LoRA with encoder = {args.encoder}, position = {args.position}, params = {args.params}")
+
     if args.encoder == 'text' or args.encoder == 'both':
         indices = INDEX_POSITIONS_TEXT[args.position]
         text_encoder = clip_model.backbone.transformer
+        # print(f"Text encoder: injecting into blocks {indices}")
         for i, block in enumerate(text_encoder.resblocks):
-            #print(f"Residual Attention Block {i}: {block}")
             if i in indices:
                 for name, submodule in block.named_children():
                     if isinstance(submodule, nn.MultiheadAttention):
+                        # print(f"  → Text block {i}, replacing submodule '{name}' with LoRA-wrapped attention")
                         new_multi_head_lora = PlainMultiheadAttentionLoRA(
                             submodule, enable_lora=args.params, r=args.r, lora_alpha=args.alpha, dropout_rate=args.dropout_rate)
                         setattr(block, name, new_multi_head_lora)
@@ -135,15 +168,18 @@ def apply_lora(args, clip_model):
     if args.encoder == 'vision' or args.encoder == 'both':
         indices = INDEX_POSITIONS_VISION[args.backbone][args.position]
         vision_encoder = clip_model.backbone.visual.transformer
+        # print(f"Vision encoder: injecting into blocks {indices}")
         for i, block in enumerate(vision_encoder.resblocks):
-            #print(f"Residual Attention Block {i}: {block}")
             if i in indices:
                 for name, submodule in block.named_children():
                     if isinstance(submodule, nn.MultiheadAttention):
+                        # print(f"  → Vision block {i}, replacing submodule '{name}' with LoRA-wrapped attention")
                         new_multi_head_lora = PlainMultiheadAttentionLoRA(
                             submodule, enable_lora=args.params, r=args.r, lora_alpha=args.alpha, dropout_rate=args.dropout_rate)
                         setattr(block, name, new_multi_head_lora)
                         list_lora_layers.append(new_multi_head_lora)
+
+    print(f"Total LoRA layers injected: {len(list_lora_layers)}")
     return list_lora_layers
 
 def get_lora_parameters(model, bias='none'):

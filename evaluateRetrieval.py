@@ -16,9 +16,11 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "")
 
 
 def evaluate_image_text(path, temperature, n=5, mode='one'):
-    dataset = EmbeddingDataset(path, n_captions=n, flag='retrieval')
+    # dataset = EmbeddingDataset(path, n_captions=n, flag='retrieval')
+    dataset = EmbeddingDataset(path, n_captions=n)
     loader, indices = dataset.get_loader(batch_size=5000, shuffle=False)
     result = []
+    
     for batch in loader:
         images = batch['image_embeddings'].to(device).squeeze()
         captions = batch['texts_embeddings'].to(device).flatten(start_dim=0, end_dim=1)
@@ -51,7 +53,7 @@ if __name__ == '__main__':
     model, _ = clip.load('ViT-L/14')
     mode = 'one'
     title = f'RSICD Retrieval with LORA Adapter (ViT-L/14)'
-    path = 'embeddings/rsicd_lora_val.pkl'
+    path = 'embeddings/rsicd_lora_train_3.pkl'
     label = 'RSICD (LORA)'
 
     results = {}
