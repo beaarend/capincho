@@ -20,13 +20,13 @@ def evaluate_image_text(path, temperature, n=5, mode='one'):
     dataset = EmbeddingDataset(path, n_captions=n)
     loader, indices = dataset.get_loader(batch_size=5000, shuffle=False)
     result = []
-    
+
     for batch in loader:
         images = batch['image_embeddings'].to(device).squeeze()
         captions = batch['texts_embeddings'].to(device).flatten(start_dim=0, end_dim=1)
         images = images / images.norm(dim=-1, keepdim=True)
         captions = captions / captions.norm(dim=-1, keepdim=True)
-        sim = (images @ captions.T) * temperature.exp()
+        sim = (images @ captions.T) / temperature
         # print(sim.shape)
         rank = sim.argsort(descending=True, dim=1) // 5
         for i in range(images.shape[0]):
@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
     results = {}
     for t in [0.03, 0.07, 0.1, 0.15]:
-        result = evaluate_image_text(path, torch.tensor(t), mode='all')
+        result = evaluate_image_text(path, t, mode='all')
         results[f"T={t}"] = result
 
     # Print out the results nicely

@@ -135,7 +135,7 @@ def adapt_lora_embeddings(model, args, split, save_path, dataset):
     all_ids = []
     all_names = []
 
-    for batch in loader:
+    for batch in tqdm(loader, desc=f"Processing {split} split"):
         images, _ = model.image_projection(batch['image_embeddings'])
         images = images.detach().cpu()
 
@@ -217,8 +217,8 @@ def run_lora_training(model, args, save_path):
     log = {'training_loss': train_losses, 'validation_loss': val_losses}
     with open(os.path.join(save_path, 'loss_log.pkl'), 'wb') as f:
         pickle.dump(log, f)
-    
-    exit()
+
+    return
 
     if(args.dataset == 'coco'):
         new_train_embeddings = 'embeddings/coco/coco_lora_train_1.pkl'
@@ -236,7 +236,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', choices=['openclip', 'clip', 'coca'], default='openclip', help='model to use')
     parser.add_argument('--backbone', default='ViT-B/16', type=str)
     parser.add_argument('--position', type=str, default='all', choices=['bottom', 'mid', 'up', 'half-up', 'half-bottom', 'all', 'top3'], help='where to put the LoRA modules')
-    parser.add_argument('--encoder', type=str, choices=['text', 'vision', 'both'], default='both')
+    parser.add_argument('--encoder', type=str, choices=['text', 'vision', 'both'], default='vision')
     parser.add_argument('--params', metavar='N', type=str, nargs='+', default=['q', 'k', 'v'], help='list of attention matrices where putting a LoRA') 
     parser.add_argument('--r', default=2, type=int, help='the rank of the low-rank matrices')
     parser.add_argument('--alpha', default=1.25, type=int, help='scaling (see LoRA paper)')
@@ -246,13 +246,16 @@ if __name__ == '__main__':
     parser.add_argument('--n_iters', default=500, type=int)
     parser.add_argument('--batch_size', default=16, type=int)
 
-    parser.add_argument('--dataset', default='coco', choices=['coco', 'rsicd'], type=str)
+    parser.add_argument('--dataset', default='rsicd', choices=['coco', 'rsicd'], type=str)
 
     args = parser.parse_args()
 
     combinations = [
-        {'position': 'all', 'params': ['q', 'k', 'v', 'o'], 'lr': 2e-4, 'dropout_rate': 0.2, 'r': 8, 'alpha': 16},
-        {'position': 'all', 'params': ['q', 'k', 'v', 'o'], 'lr': 5e-5, 'dropout_rate': 0.2, 'r': 8, 'alpha': 8},
+        # {'position': 'all', 'params': ['q', 'k', 'v', 'o'], 'lr': 2e-4, 'dropout_rate': 0.2, 'r': 8, 'alpha': 16},
+        # {'position': 'top3', 'params': ['v', 'o'], 'lr': 1e-5, 'dropout_rate': 0, 'r': 2, 'alpha': 1.25},
+        {'position': 'top3', 'params': ['q', 'k', 'v', 'o'], 'lr': 1e-5, 'dropout_rate': 0, 'r': 2, 'alpha': 0.5},
+        # {'position': 'top3', 'params': ['v', 'o'], 'lr': 1e-5, 'dropout_rate': 0, 'r': 4, 'alpha': 1.25},
+        {'position': 'up', 'params': ['q', 'k', 'v', 'o'], 'lr': 1e-5, 'dropout_rate': 0, 'r': 4, 'alpha': 0.5},
         # {'position': 'all', 'params': ['o'], 'lr': 1e-4, 'dropout_rate': 0.1, 'r': 4, 'alpha': 4},
         # {'position': 'all', 'params': ['k', 'v'], 'lr': 1e-4, 'dropout_rate': 0.3, 'r': 4, 'alpha': 8},
     ]
@@ -263,7 +266,7 @@ if __name__ == '__main__':
         args.model = 'openclip'
         args.encoder = 'both'
         args.n_iters = 300
-        args.batch_size = 32
+        args.batch_size = 16
 
         args.position = combo['position']
         args.params = combo['params']

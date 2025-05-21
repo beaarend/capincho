@@ -45,10 +45,14 @@ class LoRAWrapper:
             image_features = image_features / image_features.norm(dim=1, keepdim=True)
 
         logit_scale = self.logit_scale.exp().clamp(max=100)
-        cosine_similarity = logit_scale * image_features @ text_features.T
-        # cosine_similarity = self.foundation.backbone.logit_scale * image_features @ text_features.T
-        return cosine_similarity
-    
+        
+        if self.encoder == 'both':
+            cosine_similarity = logit_scale * image_features @ text_features.T
+            return cosine_similarity
+            
+        else:
+            raise ValueError("Invalid encoder type. Use 'both'.")
+
     def image_projection(self, embeddings):
         self.foundation.backbone.eval()
         return self.imageAdapter(embeddings.to(device, torch.float32), embeddings.to(device, torch.float32), embeddings.to(device, torch.float32))
