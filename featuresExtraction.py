@@ -22,20 +22,20 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--split', choices=['train', 'val'], default='train', help='split to use')
     parser.add_argument('--model', choices=['openclip', 'clip', 'coca'], default='openclip', help='model to use')
-    parser.add_argument('--backbone', default='ViT-B/16', type=str)
 
     parser.add_argument('--lora', action='store_true', help='use lora', default=True)
 
+    parser.add_argument('--backbone', default='ViT-B/32', type=str)
     parser.add_argument('--position', type=str, default='all', choices=['bottom', 'mid', 'up', 'half-up', 'half-bottom', 'all', 'top3'], help='where to put the LoRA modules')
-    parser.add_argument('--encoder', type=str, choices=['text', 'vision', 'both'], default='both')
+    parser.add_argument('--encoder', type=str, choices=['text', 'vision', 'both'], default='vision')
     parser.add_argument('--params', metavar='N', type=str, nargs='+', default=['q', 'k', 'v'], help='list of attention matrices where putting a LoRA') 
     parser.add_argument('--r', default=2, type=int, help='the rank of the low-rank matrices')
-    parser.add_argument('--alpha', default=1, type=int, help='scaling (see LoRA paper)')
+    parser.add_argument('--alpha', default=1.25, type=int, help='scaling (see LoRA paper)')
     parser.add_argument('--dropout_rate', default=0.25, type=float, help='dropout rate applied before the LoRA module')
 
     parser.add_argument('--lr', default=2e-4, type=float)
     parser.add_argument('--n_iters', default=500, type=int)
-    parser.add_argument('--batch_size', default=32, type=int)
+    parser.add_argument('--batch_size', default=16, type=int)
 
     parser.add_argument('--dataset',type=str, default='rsicd', choices=['coco', 'rsicd'])
 
@@ -52,12 +52,13 @@ if __name__ == '__main__':
 
     model.load_model()
 
-    # if args.lora:
-    #     model = LoRAWrapper(model, encoder='both')
-    #     model.backbone.to(device)
+    if args.lora:
+        model = LoRAWrapper(model, encoder='both')
+        model.backbone.to(device)
 
-    # run_lora_training(model, args)
-    # exit()
+    run_lora_training(model, args, save_path='embeddings/')
+
+    exit()
 
     model.backbone.eval()
 
@@ -65,8 +66,6 @@ if __name__ == '__main__':
         new_dataset_path = dataset_path + 'COCO/'
     elif(args.dataset == 'rsicd'):
         new_dataset_path = dataset_path + 'RSICD/'
-
-    
 
     #coco = COCO(f'datasets_torchvision/coco_2017/annotations/captions_{args.split}2017.json')
     # loaded_dataset = COCO(os.path.join(dataset_path, 'COCO', 'annotations', f'captions_{args.split}2017.json'))
