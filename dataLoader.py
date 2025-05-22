@@ -44,10 +44,10 @@ class DatasetHandler(Generic[TImageId, TAnnotationId, TCategoryId]):
             self.dataset = json.load(f)
 
     def get_image_ids(self) -> list[TImageId]:
-        if (self.dataset_type == 'rsicd'):
+        # if (self.dataset_type == 'rsicd'):
             return [img["imgid"] for img in self.dataset.get("images", [])]
-        if (self.dataset_type == 'coco'):
-            return [img["image_id"] for img in self.dataset.get("images", [])]
+        # if (self.dataset_type == 'coco'):
+        #     return [img["image_id"] for img in self.dataset.get("images", [])]
     
     def get_annotation_ids(self, img_id: TImageId) -> list[TAnnotationId]:
         #return [ann["imgid"] for ann in self.dataset.get("annotations", []) if ann["imgid"] == img_id]
@@ -55,10 +55,10 @@ class DatasetHandler(Generic[TImageId, TAnnotationId, TCategoryId]):
     
     def load_images(self, ids: list[TImageId]) -> list[dict]:
         id_set = set(ids)
-        if (self.dataset_type == 'coco'):
-            return [img for img in self.dataset.get("images", []) if img["image_id"] in id_set]
-        if (self.dataset_type == 'rsicd'):
-            return [img for img in self.dataset.get("images", []) if img["imgid"] in id_set]
+        # if (self.dataset_type == 'coco'):
+        #     return [img for img in self.dataset.get("images", []) if img["image_id"] in id_set]
+        # if (self.dataset_type == 'rsicd'):
+        return [img for img in self.dataset.get("images", []) if img["imgid"] in id_set]
     
     def load_annotations(self, ids: list[TAnnotationId]) -> list[dict]:
         # id_set = set(ids)

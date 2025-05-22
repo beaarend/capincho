@@ -49,46 +49,16 @@ class LoRAWrapper:
         else:
             raise ValueError("NOT IMPLEMENTED USE BOTH" )
     
-    # def train_epoch(self, train_loader, optimizer):
-
-    #     self.foundation.backbone.train()
-    #     epoch_losses = []
-
-    #     num_batches = len(train_loader)
-    #     # print(f"Number of batches in train_loader: {num_batches}")
-
-    #     for batch_idx, batch in enumerate(train_loader):
-    #         # print(f"Processing train batch {batch_idx}")
-
-    #         optimizer.zero_grad()
-    #         start = time.time()
-    #         logits = self.forward(batch)  # shape [batch_size, batch_size]
-    #         # print(f"Forward pass took: {time.time() - start:.2f}s")
-            
-    #         batch_size = batch['image'].size(0)
-    #         targets = torch.arange(batch_size, device=logits.device)
-            
-    #         loss_img_to_text = nn.CrossEntropyLoss()(logits, targets)
-    #         loss_text_to_img = nn.CrossEntropyLoss()(logits.T, targets)
-    #         loss = loss_img_to_text + loss_text_to_img
-            
-    #         loss.backward()
-    #         optimizer.step()
-            
-    #         epoch_losses.append(loss.detach().cpu().item())
-    #         print(f"Batch {batch_idx + 1}/{num_batches} - Time: {time.time() - start:.2f}s")
-        
-    #     return np.mean(epoch_losses)
     def train_epoch(self, train_loader, optimizer):
         self.foundation.backbone.train()
         epoch_losses = []
-        scaler = amp.GradScaler(device_type='cuda')  # updated GradScaler
+        scaler = amp.GradScaler()  
 
         for batch_idx, batch in enumerate(train_loader):
             optimizer.zero_grad()
             start = time.time()
 
-            with amp.autocast(device_type='cuda'):  # updated autocast
+            with amp.autocast(device_type='cuda'): 
                 logits = self.forward(batch)
                 batch_size = batch['image'].size(0)
                 targets = torch.arange(batch_size, device=logits.device)
@@ -101,7 +71,7 @@ class LoRAWrapper:
             scaler.update()
 
             epoch_losses.append(loss.detach().cpu().item())
-            print(f"Batch {batch_idx + 1}/{len(train_loader)} - Time: {time.time() - start:.2f}s")
+            # print(f"Batch {batch_idx + 1}/{len(train_loader)} - Time: {time.time() - start:.2f}s")
 
         return np.mean(epoch_losses)
     
@@ -132,34 +102,3 @@ class LoRAWrapper:
                         print(f"Image {j} vs Text {k}: {logits[j, k].item():.4f}")
 
         return np.mean(epoch_losses)
-
-    # def val_epoch(self, val_loader):
-    #     self.foundation.backbone.eval()  # or self.foundation.backbone.eval()
-    #     epoch_losses = []
-
-    #     with torch.no_grad():
-    #         for i, batch in enumerate(val_loader):
-    #             logits = self.forward(batch)  
-    #             batch_size = batch['image'].size(0)
-    #             targets = torch.arange(batch_size, device=logits.device)
-
-    #             loss_img_to_text = nn.CrossEntropyLoss()(logits, targets)
-    #             loss_text_to_img = nn.CrossEntropyLoss()(logits.T, targets)
-    #             loss = loss_img_to_text + loss_text_to_img
-    #             epoch_losses.append(loss.cpu().item())
-
-    #             if i == 0:
-    #                 # Print some cosine similarities for the first batch
-    #                 print("\n📊 Cosine Similarities (top-left 5x5 matrix):")
-    #                 print(logits[:5, :5].cpu().numpy())
-
-    #                 print("\n✅ Matching Pairs (diagonal):")
-    #                 for j in range(min(5, batch_size)):
-    #                     print(f"Pair {j}: {logits[j, j].item():.4f}")
-
-    #                 print("\n❌ Non-Matching Pairs (off-diagonal):")
-    #                 for j in range(min(5, batch_size)):
-    #                     k = (j + 1) % batch_size
-    #                     print(f"Image {j} vs Text {k}: {logits[j, k].item():.4f}")
-
-    #     return np.mean(epoch_losses)

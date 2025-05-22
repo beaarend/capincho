@@ -113,7 +113,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=2e-4, help='learning rate')
     parser.add_argument('--epochs', type=int, default=2, help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
-    parser.add_argument('--embeddings', type=str, default='embeddings/rsicd_lora_train_3.pkl', help='embeddings filename')
+    parser.add_argument('--embeddings', type=str, default='embeddings/rsicd_lora_train.pkl', help='embeddings filename')
     parser.add_argument('--rank', type=int, default=16, help='lora rank')
     parser.add_argument('--alpha', type=int, default=32, help='lora alpha parameter')
     parser.add_argument('--dropout', type=float, default=0.05, help='lora dropout parameter')

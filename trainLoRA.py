@@ -135,7 +135,7 @@ def run_lora_training(model, args, save_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--split', choices=['train', 'val'], default='train', help='split to use')
+    parser.add_argument('--split', choices=['train', 'val'], default='val', help='split to use')
     parser.add_argument('--model', choices=['openclip', 'clip', 'coca'], default='openclip', help='model to use')
     parser.add_argument('--backbone', default='ViT-B/16', type=str)
     parser.add_argument('--position', type=str, default='all', choices=['bottom', 'mid', 'up', 'half-up', 'half-bottom', 'all', 'top3'], help='where to put the LoRA modules')

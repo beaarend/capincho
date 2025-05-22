@@ -53,7 +53,7 @@ if __name__ == '__main__':
     model, _ = clip.load('ViT-L/14')
     mode = 'one'
     title = f'RSICD Retrieval with LORA Adapter (ViT-L/14)'
-    path = 'embeddings/rsicd_lora_train_3.pkl'
+    path = 'embeddings/rsicd_lora_train.pkl'
     label = 'RSICD (LORA)'
 
     results = {}

@@ -20,7 +20,7 @@ from peft import get_peft_model, LoraConfig
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--split', choices=['train', 'val'], default='train', help='split to use')
+    parser.add_argument('--split', choices=['train', 'val'], default='val', help='split to use')
     parser.add_argument('--model', choices=['openclip', 'clip', 'coca'], default='openclip', help='model to use')
 
     parser.add_argument('--lora', action='store_true', help='use lora', default=True)
@@ -39,7 +39,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--dataset',type=str, default='rsicd', choices=['coco', 'rsicd'])
 
-    parser.add_argument('--save_path', type=str, default='embeddings/rsicd_lora_train.pkl')
+    parser.add_argument('--save_path', type=str, default='embeddings/rsicd_lora_val.pkl')
+    parser.add_argument('--train', action='store_true', help='train the model', default=False)
 
     args = parser.parse_args()
 
@@ -59,9 +60,13 @@ if __name__ == '__main__':
     param_str = f"pos_{args.position}_params_{'-'.join(args.params)}_lr_{args.lr}_r_{args.r}_drop_{args.dropout_rate}_alpha_{args.alpha}"
     save_path_lora = os.path.join(f'results_{args.dataset}', 'training', param_str)
 
-    run_lora_training(model, args, save_path_lora)
-
-    exit()
+    if (args.train):
+        print(f"Training LoRA model")
+        run_lora_training(model, args, save_path_lora)
+    else:
+        print(f"Loading LoRA weights")
+        lora_weights = torch.load(os.path.join(save_path_lora, 'best_model.pt'), map_location=device)
+        model.backbone.load_state_dict(lora_weights, strict=False)
 
     model.backbone.eval()
 
