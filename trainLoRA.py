@@ -8,6 +8,8 @@ from tqdm import tqdm
 import argparse
 import foundation_models
 import numpy as np
+import math
+import time
 
 import torch.nn as nn
 from torch.optim import Adam
@@ -70,17 +72,17 @@ def run_lora_training(model, args, save_path):
     # Create DatasetHandlers
     train_handler = DatasetHandler(annotation_file=train_annotation_file, dataset_type=args.dataset)
     val_handler = DatasetHandler(annotation_file=val_annotation_file, dataset_type=args.dataset)
-    print("handlers criados")
+    # print("handlers criados")
 
     # Create Datasets
     train_dataset = RSICDDataset(train_handler, image_dir=train_image_path)
     val_dataset = RSICDDataset(val_handler, image_dir=val_image_path)
-    print("datasets criados")
+    # print("datasets criados")
 
     # Create DataLoaders
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
-    print("dataloaders criados")
+    # print("dataloaders criados")
 
     lora_params = list(get_lora_parameters(model, bias='lora_only'))
     optim = torch.optim.Adam(lora_params + [model.logit_scale], lr=args.lr, weight_decay=1e-4)
@@ -95,13 +97,16 @@ def run_lora_training(model, args, save_path):
 
     for epoch in range(args.n_iters):
         print(f"Starting epoch {epoch + 1}/{args.n_iters}...")
+        start_time = time.time()  # Start timer
         
         train_loss = model.train_epoch(train_loader, optim)
         val_loss = model.val_epoch(val_loader)
 
+        epoch_duration = time.time() - start_time  # End timer
+
         scheduler.step(val_loss)
 
-        print(f"Epoch {epoch + 1}/{args.n_iters}")
+        print(f"Epoch {epoch + 1}/{args.n_iters} finished in {epoch_duration:.2f} seconds")
         print(f"Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}")
 
         early_stopper.update(val_loss, model.backbone.state_dict())

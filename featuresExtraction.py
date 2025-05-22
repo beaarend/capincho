@@ -26,12 +26,12 @@ if __name__ == '__main__':
     parser.add_argument('--lora', action='store_true', help='use lora', default=True)
 
     parser.add_argument('--backbone', default='ViT-B/32', type=str)
-    parser.add_argument('--position', type=str, default='all', choices=['bottom', 'mid', 'up', 'half-up', 'half-bottom', 'all', 'top3'], help='where to put the LoRA modules')
+    parser.add_argument('--position', type=str, default='top', choices=['bottom', 'mid', 'up', 'half-up', 'half-bottom', 'all', 'top3', 'top'], help='where to put the LoRA modules')
     parser.add_argument('--encoder', type=str, choices=['text', 'vision', 'both'], default='vision')
     parser.add_argument('--params', metavar='N', type=str, nargs='+', default=['q', 'k', 'v'], help='list of attention matrices where putting a LoRA') 
-    parser.add_argument('--r', default=2, type=int, help='the rank of the low-rank matrices')
+    parser.add_argument('--r', default=8, type=int, help='the rank of the low-rank matrices')
     parser.add_argument('--alpha', default=1.25, type=int, help='scaling (see LoRA paper)')
-    parser.add_argument('--dropout_rate', default=0.25, type=float, help='dropout rate applied before the LoRA module')
+    parser.add_argument('--dropout_rate', default=0.1, type=float, help='dropout rate applied before the LoRA module')
 
     parser.add_argument('--lr', default=2e-4, type=float)
     parser.add_argument('--n_iters', default=500, type=int)
@@ -56,7 +56,10 @@ if __name__ == '__main__':
         model = LoRAWrapper(model, encoder='both')
         model.backbone.to(device)
 
-    run_lora_training(model, args, save_path='embeddings/')
+    param_str = f"pos_{args.position}_params_{'-'.join(args.params)}_lr_{args.lr}_r_{args.r}_drop_{args.dropout_rate}_alpha_{args.alpha}"
+    save_path_lora = os.path.join(f'results_{args.dataset}', 'training', param_str)
+
+    run_lora_training(model, args, save_path_lora)
 
     exit()
 
