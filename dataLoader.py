@@ -3,6 +3,7 @@ from collections.abc import Collection, Sequence
 from pathlib import Path
 from PIL import Image
 from torchvision import transforms
+import random
 import torch
 import json
 
@@ -72,8 +73,6 @@ class DatasetHandler(Generic[TImageId, TAnnotationId, TCategoryId]):
             if image["imgid"] in id_set and "sentences" in image:
                 annotations.extend(image["sentences"])
         return annotations
-    
-from transformers import CLIPProcessor
 
 class RSICDDataset(torch.utils.data.Dataset):
     def __init__(self, handler, image_dir):
@@ -94,27 +93,14 @@ class RSICDDataset(torch.utils.data.Dataset):
         for img in self.handler.dataset.get("images", []):
             self.id_to_filename[img["imgid"]] = img["filename"]
 
+        self.image_id_to_captions = {}
+        for img_id in self.image_ids:
+            all_sentences_for_image = self.handler.load_annotations([img_id])
+            self.image_id_to_captions[img_id] = [s['raw'] for s in all_sentences_for_image if 'raw' in s]
+        
+
     def __len__(self):
         return len(self.image_ids)
-
-    # def __getitem__(self, idx):
-    #     image_id = self.image_ids[idx]  # idx is the index, not the image_id
-    #     filename = self.id_to_filename.get(image_id)
-    #     if filename is None:
-    #         raise ValueError(f"No filename found for image id {image_id}")
-    #     image_path = self.image_dir / f"{filename}"  # or .png
-    #     image = Image.open(image_path).convert("RGB")
-
-    #     captions = self.handler.load_annotations([image_id])
-    #     caption = captions[0]['raw'] if captions else ""
-
-    #     # Transform image and tokenize text
-    #     inputs = self.processor(text=[caption], images=image, return_tensors="pt", padding=True)
-    #     return {
-    #         "image": inputs["pixel_values"].squeeze(0),
-    #         "text": inputs["input_ids"].squeeze(0),
-    #         "attention_mask": inputs["attention_mask"].squeeze(0),
-    #     }
     
     def __getitem__(self, idx):
         image_id = self.image_ids[idx]
@@ -124,12 +110,16 @@ class RSICDDataset(torch.utils.data.Dataset):
         image_path = self.image_dir / f"{filename}"
         image = Image.open(image_path).convert("RGB")
 
-        captions = self.handler.load_annotations([image_id])
-        caption = captions[0]['raw'] if captions else ""
+        captions_for_image = self.image_id_to_captions.get(image_id, [])
 
-        image_tensor = self.image_transform(image)  # use transforms.Compose(...)
+        if captions_for_image:
+            caption = random.choice(captions_for_image)
+        else:
+            caption = "" 
+
+        image_tensor = self.image_transform(image) 
         
         return {
             "image": image_tensor,
-            "text": caption  # return raw text!
+            "text": caption  
         }

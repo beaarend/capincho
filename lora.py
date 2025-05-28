@@ -71,14 +71,14 @@ class LoRAWrapper:
                 batch_size = batch['image'].size(0)
                 targets = torch.arange(batch_size, device=logits.device)
 
-                margin_value = 0.2  
-                with torch.no_grad():
-                    margin_mask = 1 - torch.eye(batch_size, device=logits.device)
+                # margin_value = 0.2  
+                # with torch.no_grad():
+                #     margin_mask = 1 - torch.eye(batch_size, device=logits.device)
 
-                logits_with_margin = logits - margin_mask * margin_value
+                # logits_with_margin = logits - margin_mask * margin_value
 
-                loss_img_to_text = nn.CrossEntropyLoss()(logits_with_margin, targets)
-                loss_text_to_img = nn.CrossEntropyLoss()(logits_with_margin.T, targets)
+                loss_img_to_text = nn.CrossEntropyLoss()(logits, targets)
+                loss_text_to_img = nn.CrossEntropyLoss()(logits.T, targets)
                 loss = (loss_img_to_text + loss_text_to_img) / 2
 
                 loss += 0.01 * (self.logit_scale ** 2)
@@ -107,14 +107,14 @@ class LoRAWrapper:
                     logits = self.forward(batch, 'val')
                     batch_size = batch['image'].size(0)
                     targets = torch.arange(batch_size, device=logits.device)
-                    margin_value = 0.2  # adjust this as needed
-                    with torch.no_grad():
-                        margin_mask = 1 - torch.eye(batch_size, device=logits.device)
+                    # margin_value = 0.2  # adjust this as needed
+                    # with torch.no_grad():
+                    #     margin_mask = 1 - torch.eye(batch_size, device=logits.device)
 
-                    logits_with_margin = logits - margin_mask * margin_value
+                    # logits_with_margin = logits - margin_mask * margin_value
 
-                    loss_img_to_text = nn.CrossEntropyLoss()(logits_with_margin, targets)
-                    loss_text_to_img = nn.CrossEntropyLoss()(logits_with_margin.T, targets)
+                    loss_img_to_text = nn.CrossEntropyLoss()(logits, targets)
+                    loss_text_to_img = nn.CrossEntropyLoss()(logits.T, targets)
                     loss = (loss_img_to_text + loss_text_to_img) / 2
 
                     loss += 0.01 * (self.logit_scale ** 2)
@@ -123,7 +123,7 @@ class LoRAWrapper:
                 if i == 0:
                     print("===============================")
                     print("\n📊 Cosine Similarities (top-left 5x5 matrix):")
-                    print(logits_with_margin[:5, :5].cpu().numpy())
+                    print(logits[:5, :5].cpu().numpy())
                     print("\n✅ Matching Pairs (diagonal):")
                     for j in range(min(5, batch_size)):
                         print(f"Pair {j}: {logits[j, j].item():.4f}")

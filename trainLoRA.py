@@ -30,7 +30,6 @@ from util import dataset_path
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-
 def collate_fn(batch):
     images = torch.stack([item["image"] for item in batch])
     texts = [item["text"] for item in batch]  # raw text strings
@@ -44,17 +43,6 @@ def collate_fn(batch):
         "attention_mask": None,         
     }
 
-# def collate_fn(batch):
-#     images = torch.stack([item["image"] for item in batch])
-#     texts = [item["text"] for item in batch]
-#     tokenized = tokenize(texts)
-
-#     return {
-#         "image": images,
-#         "input_ids": tokenized["input_ids"],
-#         "attention_mask": tokenized["attention_mask"],
-#     }
-
 def run_lora_training(model, args, save_path):
 
     if args.dataset == 'coco':
@@ -67,24 +55,18 @@ def run_lora_training(model, args, save_path):
 
     model.backbone.train()
 
-    # print("treinei o backbone")
-
     list_lora_layers = apply_lora(args, model)
-    # print("apliquei lora")
 
     mark_only_lora_as_trainable(model, bias='lora_only')   
 
     model.logit_scale.requires_grad = True
  
-    # Create DatasetHandlers
     train_handler = DatasetHandler(annotation_file=train_annotation_file, dataset_type=args.dataset)
     val_handler = DatasetHandler(annotation_file=val_annotation_file, dataset_type=args.dataset)
 
-    # Create Datasets
     train_dataset = RSICDDataset(train_handler, image_dir=train_image_path)
     val_dataset = RSICDDataset(val_handler, image_dir=val_image_path)
 
-    # Create DataLoaders
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
 
@@ -121,7 +103,7 @@ def run_lora_training(model, args, save_path):
 
         epoch_duration = time.time() - start_time
 
-        scheduler.step(val_loss)
+        scheduler.step()
 
         print(f"Epoch {epoch + 1}/{args.n_iters} finished in {epoch_duration:.2f} seconds")
         print(f"Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}")
@@ -152,7 +134,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--split', choices=['train', 'val'], default='val', help='split to use')
     parser.add_argument('--model', choices=['openclip', 'clip', 'coca'], default='openclip', help='model to use')
-    parser.add_argument('--backbone', default='ViT-B/16', type=str)
+    parser.add_argument('--backbone', default='ViT-B/32', type=str)
     parser.add_argument('--position', type=str, default='all', choices=['bottom', 'mid', 'up', 'half-up', 'half-bottom', 'all', 'top3'], help='where to put the LoRA modules')
     parser.add_argument('--encoder', type=str, choices=['text', 'vision', 'both'], default='vision')
     parser.add_argument('--params', metavar='N', type=str, nargs='+', default=['q', 'k', 'v'], help='list of attention matrices where putting a LoRA') 
