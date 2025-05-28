@@ -24,26 +24,33 @@ class LoRAWrapper:
             return getattr(foundation, name)
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
-    def forward(self, batch):
+    def forward(self, batch, mode):
 
         image = batch['image'].to(device)
         text_input_ids = batch['text'].to(device)
-        # attention_mask = batch['attention_mask'].to(device)
 
-        with torch.no_grad():
-            # start_img = time.time()
+        if(mode == 'train'):
+            start_img = time.time()
             image_features = self.foundation.backbone.encode_image(image)
             # print(f"encode_image took: {time.time() - start_img:.2f}s")
-            # start_txt = time.time()
+            start_txt = time.time()
             text_features = self.foundation.backbone.encode_text(text_input_ids)
             # print(f"encode_text took: {time.time() - start_txt:.2f}s")
         
+        else:
+            with torch.no_grad():
+                start_img = time.time()
+                image_features = self.foundation.backbone.encode_image(image)
+                # print(f"encode_image took: {time.time() - start_img:.2f}s")
+                start_txt = time.time()
+                text_features = self.foundation.backbone.encode_text(text_input_ids)
+                # print(f"encode_text took: {time.time() - start_txt:.2f}s")
+        
         image_features = image_features / image_features.norm(dim=-1, keepdim=True)
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
-        logit_scale = self.logit_scale.exp().clamp(max=100)
         
         if self.encoder == 'both':
-            cosine_similarity = logit_scale * image_features @ text_features.T
+            cosine_similarity = self.logit_scale * image_features @ text_features.T
             return cosine_similarity
             
         else:
@@ -59,15 +66,29 @@ class LoRAWrapper:
             start = time.time()
 
             with amp.autocast(device_type='cuda'): 
-                logits = self.forward(batch)
+
+                logits = self.forward(batch, 'train')
                 batch_size = batch['image'].size(0)
                 targets = torch.arange(batch_size, device=logits.device)
-                loss_img_to_text = nn.CrossEntropyLoss()(logits, targets)
-                loss_text_to_img = nn.CrossEntropyLoss()(logits.T, targets)
-                loss = loss_img_to_text + loss_text_to_img
+
+                margin_value = 0.2  
+                with torch.no_grad():
+                    margin_mask = 1 - torch.eye(batch_size, device=logits.device)
+
+                logits_with_margin = logits - margin_mask * margin_value
+
+                loss_img_to_text = nn.CrossEntropyLoss()(logits_with_margin, targets)
+                loss_text_to_img = nn.CrossEntropyLoss()(logits_with_margin.T, targets)
+                loss = (loss_img_to_text + loss_text_to_img) / 2
+
+                loss += 0.01 * (self.logit_scale ** 2)
 
             scaler.scale(loss).backward()
             scaler.step(optimizer)
+
+            with torch.no_grad():
+                    self.logit_scale.clamp_(0, np.log(100))
+
             scaler.update()
 
             epoch_losses.append(loss.detach().cpu().item())
@@ -82,17 +103,27 @@ class LoRAWrapper:
         with torch.no_grad():
             for i, batch in enumerate(val_loader):
                 with amp.autocast(device_type='cuda'):  # updated autocast
-                    logits = self.forward(batch)
+                    
+                    logits = self.forward(batch, 'val')
                     batch_size = batch['image'].size(0)
                     targets = torch.arange(batch_size, device=logits.device)
-                    loss_img_to_text = nn.CrossEntropyLoss()(logits, targets)
-                    loss_text_to_img = nn.CrossEntropyLoss()(logits.T, targets)
-                    loss = loss_img_to_text + loss_text_to_img
+                    margin_value = 0.2  # adjust this as needed
+                    with torch.no_grad():
+                        margin_mask = 1 - torch.eye(batch_size, device=logits.device)
+
+                    logits_with_margin = logits - margin_mask * margin_value
+
+                    loss_img_to_text = nn.CrossEntropyLoss()(logits_with_margin, targets)
+                    loss_text_to_img = nn.CrossEntropyLoss()(logits_with_margin.T, targets)
+                    loss = (loss_img_to_text + loss_text_to_img) / 2
+
+                    loss += 0.01 * (self.logit_scale ** 2)
                     epoch_losses.append(loss.cpu().item())
 
                 if i == 0:
+                    print("===============================")
                     print("\n📊 Cosine Similarities (top-left 5x5 matrix):")
-                    print(logits[:5, :5].cpu().numpy())
+                    print(logits_with_margin[:5, :5].cpu().numpy())
                     print("\n✅ Matching Pairs (diagonal):")
                     for j in range(min(5, batch_size)):
                         print(f"Pair {j}: {logits[j, j].item():.4f}")
@@ -102,3 +133,4 @@ class LoRAWrapper:
                         print(f"Image {j} vs Text {k}: {logits[j, k].item():.4f}")
 
         return np.mean(epoch_losses)
+    

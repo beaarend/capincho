@@ -45,8 +45,8 @@ def load_embeddings(path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate caption generation')
-    parser.add_argument('-e', '--embeddings', type=str, default='embeddings/rsicd_lora_train.pkl')
-    parser.add_argument('-m', '--model', type=str, default='results_rsicd/decoder/experiment.json')
+    parser.add_argument('-e', '--embeddings', type=str, default='embeddings/rsicd_lora_train_2.pkl')
+    parser.add_argument('-m', '--model', type=str, default='results_rsicd/decoder3/experiment.json')
     parser.add_argument('-s', '--split', type=str, default='train', choices=['train', 'val'])
     parser.add_argument('--random_seed', type=int, default=777)
     parser.add_argument('--num_images', '-n', type=int, default=10)

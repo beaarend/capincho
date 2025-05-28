@@ -26,21 +26,21 @@ if __name__ == '__main__':
     parser.add_argument('--lora', action='store_true', help='use lora', default=True)
 
     parser.add_argument('--backbone', default='ViT-B/32', type=str)
-    parser.add_argument('--position', type=str, default='top', choices=['bottom', 'mid', 'up', 'half-up', 'half-bottom', 'all', 'top3', 'top'], help='where to put the LoRA modules')
-    parser.add_argument('--encoder', type=str, choices=['text', 'vision', 'both'], default='vision')
-    parser.add_argument('--params', metavar='N', type=str, nargs='+', default=['q', 'k', 'v'], help='list of attention matrices where putting a LoRA') 
-    parser.add_argument('--r', default=8, type=int, help='the rank of the low-rank matrices')
-    parser.add_argument('--alpha', default=1.25, type=int, help='scaling (see LoRA paper)')
-    parser.add_argument('--dropout_rate', default=0.1, type=float, help='dropout rate applied before the LoRA module')
+    parser.add_argument('--position', type=str, default='up', choices=['bottom', 'mid', 'up', 'half-up', 'half-bottom', 'all', 'top3', 'top'], help='where to put the LoRA modules')
+    parser.add_argument('--encoder', type=str, choices=['text', 'vision', 'both'], default='both')
+    parser.add_argument('--params', metavar='N', type=str, nargs='+', default=['q', 'k', 'v', 'o'], help='list of attention matrices where putting a LoRA')
+    parser.add_argument('--r', default=2, type=int, help='the rank of the low-rank matrices')
+    parser.add_argument('--alpha', default=1.25, type=float, help='scaling (see LoRA paper)')
+    parser.add_argument('--dropout_rate', default=0.2, type=float, help='dropout rate applied before the LoRA module')
 
-    parser.add_argument('--lr', default=2e-4, type=float)
-    parser.add_argument('--n_iters', default=500, type=int)
-    parser.add_argument('--batch_size', default=16, type=int)
+    parser.add_argument('--lr', default=1e-4, type=float)
+    parser.add_argument('--n_iters', default=300, type=int)
+    parser.add_argument('--batch_size', default=32, type=int)
 
     parser.add_argument('--dataset',type=str, default='rsicd', choices=['coco', 'rsicd'])
 
-    parser.add_argument('--save_path', type=str, default='embeddings/rsicd_lora_val.pkl')
-    parser.add_argument('--train', action='store_true', help='train the model', default=False)
+    parser.add_argument('--save_path', type=str, default='embeddings/rsicd_lora_val_2.pkl')
+    parser.add_argument('--train', action='store_true', help='train the model', default=True)
 
     args = parser.parse_args()
 
@@ -59,10 +59,12 @@ if __name__ == '__main__':
 
     param_str = f"pos_{args.position}_params_{'-'.join(args.params)}_lr_{args.lr}_r_{args.r}_drop_{args.dropout_rate}_alpha_{args.alpha}"
     save_path_lora = os.path.join(f'results_{args.dataset}', 'training', param_str)
+    os.makedirs(save_path_lora, exist_ok=True)
 
     if (args.train):
         print(f"Training LoRA model")
         run_lora_training(model, args, save_path_lora)
+        exit()
     else:
         print(f"Loading LoRA weights")
         lora_weights = torch.load(os.path.join(save_path_lora, 'best_model.pt'), map_location=device)

@@ -12,13 +12,15 @@ import math
 import time
 
 import torch.nn as nn
-from torch.optim import Adam
+from torch.optim import AdamW
 from torch.nn.utils.rnn import pad_sequence
+from torch.optim.lr_scheduler import LambdaLR
+
 from open_clip import tokenize
 
 from embeddingsDataset import EmbeddingDataset
 from dataLoader import DatasetHandler, RSICDDataset
-from util import plot_curves, apply_lora, get_lora_parameters
+from util import plot_curves, apply_lora, get_lora_parameters, mark_only_lora_as_trainable
 from lora import LoRAWrapper
 
 from earlyStopping import EarlyStopping
@@ -42,9 +44,18 @@ def collate_fn(batch):
         "attention_mask": None,         
     }
 
-def run_lora_training(model, args, save_path):
+# def collate_fn(batch):
+#     images = torch.stack([item["image"] for item in batch])
+#     texts = [item["text"] for item in batch]
+#     tokenized = tokenize(texts)
 
-    print("entrei no run_lora_training")
+#     return {
+#         "image": images,
+#         "input_ids": tokenized["input_ids"],
+#         "attention_mask": tokenized["attention_mask"],
+#     }
+
+def run_lora_training(model, args, save_path):
 
     if args.dataset == 'coco':
         pass
@@ -56,39 +67,45 @@ def run_lora_training(model, args, save_path):
 
     model.backbone.train()
 
-    print("treinei o backbone")
+    # print("treinei o backbone")
 
     list_lora_layers = apply_lora(args, model)
-    print("apliquei lora")
+    # print("apliquei lora")
 
-    for param in model.backbone.parameters():
-        param.requires_grad = False
-
-    for param in get_lora_parameters(model, bias='lora_only'): 
-        param.requires_grad = True
+    mark_only_lora_as_trainable(model, bias='lora_only')   
 
     model.logit_scale.requires_grad = True
  
     # Create DatasetHandlers
     train_handler = DatasetHandler(annotation_file=train_annotation_file, dataset_type=args.dataset)
     val_handler = DatasetHandler(annotation_file=val_annotation_file, dataset_type=args.dataset)
-    # print("handlers criados")
 
     # Create Datasets
     train_dataset = RSICDDataset(train_handler, image_dir=train_image_path)
     val_dataset = RSICDDataset(val_handler, image_dir=val_image_path)
-    # print("datasets criados")
 
     # Create DataLoaders
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
-    # print("dataloaders criados")
 
     lora_params = list(get_lora_parameters(model, bias='lora_only'))
-    optim = torch.optim.Adam(lora_params + [model.logit_scale], lr=args.lr, weight_decay=1e-4)
 
-    early_stopper = EarlyStopping(patience=20, minimal_improvement=0.001, objective='minimize', save_option='best', save_path=save_path +'/best_model.pt')
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, 'min', patience=5, factor=0.1, verbose=True)
+    early_stopper = EarlyStopping(patience=5, minimal_improvement=0.01, objective='minimize', save_option='best', save_path=save_path +'/best_model.pt')
+    optimizer = torch.optim.AdamW(lora_params + [model.logit_scale], weight_decay=1e-2, betas=(0.9, 0.999), lr=args.lr)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.n_iters, eta_min=1e-6)
+
+    warmup_steps = max(10, int(0.04 * args.n_iters))  # e.g. 5% of total iters or at least 10 epochs
+    
+    def lr_lambda(current_step):
+        if current_step < warmup_steps:
+            # linear warmup from 0 to 1
+            return float(current_step) / float(max(1, warmup_steps))
+        else:
+            # cosine annealing from 1 to 0
+            progress = float(current_step - warmup_steps) / float(max(1, args.n_iters - warmup_steps))
+            return 0.5 * (1. + math.cos(math.pi * progress))
+
+    scheduler = LambdaLR(optimizer, lr_lambda=lr_lambda)
 
     train_losses = []
     val_losses = []
@@ -99,10 +116,10 @@ def run_lora_training(model, args, save_path):
         print(f"Starting epoch {epoch + 1}/{args.n_iters}...")
         start_time = time.time()  # Start timer
         
-        train_loss = model.train_epoch(train_loader, optim)
+        train_loss = model.train_epoch(train_loader, optimizer)
         val_loss = model.val_epoch(val_loader)
 
-        epoch_duration = time.time() - start_time  # End timer
+        epoch_duration = time.time() - start_time
 
         scheduler.step(val_loss)
 
@@ -114,8 +131,6 @@ def run_lora_training(model, args, save_path):
             print("Early stopping triggered.")
             break
 
-        with torch.no_grad():
-            model.logit_scale.data.clamp_(0, np.log(100))
         print(f"logit_scale raw: {model.logit_scale.item():.4f}, exp: {model.logit_scale.exp().item():.4f}")
 
         train_losses.append(train_loss)
@@ -154,10 +169,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     combinations = [
-        {'position': 'up', 'params': ['q', 'k', 'v', 'o'], 'lr': 1e-5, 'dropout_rate': 0.05, 'r': 2, 'alpha': 0.5},
+        {'position': 'up', 'params': ['q', 'k', 'v', 'o'], 'lr': 5e-5, 'dropout_rate': 0.2, 'r': 2, 'alpha': 0.5},
+        # {'position': 'all', 'params': ['q', 'k', 'v', 'o'], 'lr': 1e-5, 'dropout_rate': 0.1, 'r': 4, 'alpha': 1.25},
+        # {'position': 'up', 'params': ['o'], 'lr': 5e-5, 'dropout_rate': 0.3, 'r': 4, 'alpha': 0.75},
+        # {'position': 'mid', 'params': ['o'], 'lr': 2e-4 , 'dropout_rate': 0.1, 'r': 4, 'alpha': 0.50},
+        # {'position': 'half-up', 'params': ['q', 'k', 'v', 'o'], 'lr': 1e-5, 'dropout_rate': 0.3, 'r': 8, 'alpha': 0.25},
     ]
 
-    # todo: on-the-fly, create embeddings only after training with LoRA
 
     for combo in combinations:
         args = parser.parse_args([])  

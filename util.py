@@ -203,6 +203,26 @@ def get_lora_parameters(model, bias='none'):
             raise NotImplementedError
     return params
 
+def mark_only_lora_as_trainable(model, bias: str = 'none') -> None:
+    for n, p in model.backbone.named_parameters():
+        if 'lora_' not in n:
+            p.requires_grad = False
+    if bias == 'none':
+        return
+    elif bias == 'all':
+        for n, p in model.backbone.named_parameters():
+            if 'bias' in n:
+                p.requires_grad = True
+    elif bias == 'lora_only':
+        for m in model.backbone.modules():
+            if isinstance(m, LoRALayer) and \
+                    hasattr(m, 'bias') and \
+                    m.bias is not None:
+                m.bias.requires_grad = True
+    else:
+        raise NotImplementedError
+
+
 if __name__ == '__main__':
     sentence = 'a very long sentence should be placed here but i am too lazy to do it'
     splited = split_sentence(sentence, int(400/8))
