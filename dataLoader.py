@@ -1,4 +1,5 @@
 from typing import Protocol, TypeVar, Generic, TypedDict, Literal
+from collections import defaultdict
 from collections.abc import Collection, Sequence
 from pathlib import Path
 from PIL import Image
@@ -89,37 +90,78 @@ class RSICDDataset(torch.utils.data.Dataset):
         ])
 
         self.image_ids = self.handler.get_image_ids()
-        self.id_to_filename = {}
-        for img in self.handler.dataset.get("images", []):
-            self.id_to_filename[img["imgid"]] = img["filename"]
+        # self.id_to_filename = {}
+        # for img in self.handler.dataset.get("images", []):
+        #     self.id_to_filename[img["imgid"]] = img["filename"]
 
-        self.image_id_to_captions = {}
-        for img_id in self.image_ids:
-            all_sentences_for_image = self.handler.load_annotations([img_id])
-            self.image_id_to_captions[img_id] = [s['raw'] for s in all_sentences_for_image if 'raw' in s]
+        # self.image_id_to_captions = {}
+        # for img_id in self.image_ids:
+        #     all_sentences_for_image = self.handler.load_annotations([img_id])
+        #     self.image_id_to_captions[img_id] = [s['raw'] for s in all_sentences_for_image if 'raw' in s]
+
+        self.samples = []
+        for img in self.handler.dataset.get("images", []):
+            img_id = img["imgid"]
+            filename = img["filename"]
+            annotations = self.handler.load_annotations([img_id])
+            for ann in annotations:
+                if "raw" in ann:
+                    self.samples.append({
+                        "image_id": img_id,
+                        "filename": filename,
+                        "caption": ann["raw"]
+                    })
         
 
     def __len__(self):
         return len(self.image_ids)
     
-    def __getitem__(self, idx):
-        image_id = self.image_ids[idx]
-        filename = self.id_to_filename.get(image_id)
-        if filename is None:
-            raise ValueError(f"No filename found for image id {image_id}")
-        image_path = self.image_dir / f"{filename}"
-        image = Image.open(image_path).convert("RGB")
+    # def __getitem__(self, idx):
+    #     image_id = self.image_ids[idx]
+    #     filename = self.id_to_filename.get(image_id)
+    #     if filename is None:
+    #         raise ValueError(f"No filename found for image id {image_id}")
+    #     image_path = self.image_dir / f"{filename}"
+    #     image = Image.open(image_path).convert("RGB")
 
-        captions_for_image = self.image_id_to_captions.get(image_id, [])
+    #     captions_for_image = self.image_id_to_captions.get(image_id, [])
 
-        if captions_for_image:
-            caption = random.choice(captions_for_image)
-        else:
-            caption = "" 
+    #     if captions_for_image:
+    #         caption = random.choice(captions_for_image)
+    #     else:
+    #         caption = "" 
 
-        image_tensor = self.image_transform(image) 
+    #     image_tensor = self.image_transform(image) 
         
+    #     return {
+    #         "image": image_tensor,
+    #         "text": caption  
+    #     }
+
+    def __getitem__(self, idx):
+        sample = self.samples[idx]
+        image_path = self.image_dir / sample["filename"]
+        image = Image.open(image_path).convert("RGB")
+        image_tensor = self.image_transform(image)
+        caption = sample["caption"]
         return {
             "image": image_tensor,
-            "text": caption  
+            "text": caption
         }
+    
+    def get_few_shot_indices(self, shots_per_image=1, seed=42):
+        random.seed(seed)
+
+        image_to_indices = defaultdict(list)
+        for idx, sample in enumerate(self.samples):
+            image_to_indices[sample["image_id"]].append(idx)
+
+        selected_indices = []
+        for image_id, indices in image_to_indices.items():
+            if len(indices) <= shots_per_image:
+                selected = indices
+            else:
+                selected = random.sample(indices, shots_per_image)
+            selected_indices.extend(selected)
+
+        return selected_indices

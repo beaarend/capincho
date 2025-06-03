@@ -81,7 +81,7 @@ class LoRAWrapper:
                 loss_text_to_img = nn.CrossEntropyLoss()(logits.T, targets)
                 loss = (loss_img_to_text + loss_text_to_img) / 2
 
-                loss += 0.01 * (self.logit_scale ** 2)
+                # loss += 0.01 * (self.logit_scale ** 2)
 
             scaler.scale(loss).backward()
             scaler.step(optimizer)
@@ -110,14 +110,13 @@ class LoRAWrapper:
                     # margin_value = 0.2  # adjust this as needed
                     # with torch.no_grad():
                     #     margin_mask = 1 - torch.eye(batch_size, device=logits.device)
-
                     # logits_with_margin = logits - margin_mask * margin_value
 
                     loss_img_to_text = nn.CrossEntropyLoss()(logits, targets)
                     loss_text_to_img = nn.CrossEntropyLoss()(logits.T, targets)
                     loss = (loss_img_to_text + loss_text_to_img) / 2
 
-                    loss += 0.01 * (self.logit_scale ** 2)
+                    # loss += 0.01 * (self.logit_scale ** 2)
                     epoch_losses.append(loss.cpu().item())
 
                 if i == 0:

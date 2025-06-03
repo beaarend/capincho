@@ -14,7 +14,7 @@ import time
 import torch.nn as nn
 from torch.optim import AdamW
 from torch.nn.utils.rnn import pad_sequence
-from torch.optim.lr_scheduler import LambdaLR
+from torch.optim.lr_scheduler import LambdaLR, ReduceLROnPlateau
 
 from open_clip import tokenize
 
@@ -43,7 +43,7 @@ def collate_fn(batch):
         "attention_mask": None,         
     }
 
-def run_lora_training(model, args, save_path):
+def run_lora_training(model, args, save_path, few_shot=False):
 
     if args.dataset == 'coco':
         pass
@@ -67,13 +67,20 @@ def run_lora_training(model, args, save_path):
     train_dataset = RSICDDataset(train_handler, image_dir=train_image_path)
     val_dataset = RSICDDataset(val_handler, image_dir=val_image_path)
 
+    if few_shot:
+        new_indices = train_dataset.get_few_shot_indices(4)
+        train_dataset = torch.utils.data.Subset(train_dataset, new_indices)
+        new_indices_val = val_dataset.get_few_shot_indices(4)
+        val_dataset = torch.utils.data.Subset(val_dataset, new_indices_val)
+    
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
 
     lora_params = list(get_lora_parameters(model, bias='lora_only'))
 
     early_stopper = EarlyStopping(patience=5, minimal_improvement=0.01, objective='minimize', save_option='best', save_path=save_path +'/best_model.pt')
-    optimizer = torch.optim.AdamW(lora_params + [model.logit_scale], weight_decay=1e-2, betas=(0.9, 0.999), lr=args.lr)
+    # optimizer = torch.optim.AdamW(lora_params + [model.logit_scale], weight_decay=1e-2, betas=(0.9, 0.999), lr=args.lr)
+    optimizer = torch.optim.AdamW(lora_params + [model.logit_scale], betas=(0.9, 0.999), lr=args.lr)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.n_iters, eta_min=1e-6)
 
     warmup_steps = max(10, int(0.04 * args.n_iters))  # e.g. 5% of total iters or at least 10 epochs
@@ -88,6 +95,7 @@ def run_lora_training(model, args, save_path):
             return 0.5 * (1. + math.cos(math.pi * progress))
 
     scheduler = LambdaLR(optimizer, lr_lambda=lr_lambda)
+    scheduler_plateau = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=3, verbose=True)
 
     train_losses = []
     val_losses = []
@@ -104,6 +112,7 @@ def run_lora_training(model, args, save_path):
         epoch_duration = time.time() - start_time
 
         scheduler.step()
+        scheduler_plateau.step(val_loss)
 
         print(f"Epoch {epoch + 1}/{args.n_iters} finished in {epoch_duration:.2f} seconds")
         print(f"Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}")
@@ -139,7 +148,7 @@ if __name__ == '__main__':
     parser.add_argument('--encoder', type=str, choices=['text', 'vision', 'both'], default='vision')
     parser.add_argument('--params', metavar='N', type=str, nargs='+', default=['q', 'k', 'v'], help='list of attention matrices where putting a LoRA') 
     parser.add_argument('--r', default=2, type=int, help='the rank of the low-rank matrices')
-    parser.add_argument('--alpha', default=1.25, type=int, help='scaling (see LoRA paper)')
+    parser.add_argument('--alpha', default=1.25, type=float, help='scaling (see LoRA paper)')
     parser.add_argument('--dropout_rate', default=0.25, type=float, help='dropout rate applied before the LoRA module')
 
     parser.add_argument('--lr', default=2e-4, type=float)
@@ -151,8 +160,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     combinations = [
-        {'position': 'up', 'params': ['q', 'k', 'v', 'o'], 'lr': 5e-5, 'dropout_rate': 0.2, 'r': 2, 'alpha': 0.5},
-        # {'position': 'all', 'params': ['q', 'k', 'v', 'o'], 'lr': 1e-5, 'dropout_rate': 0.1, 'r': 4, 'alpha': 1.25},
+        # {'position': 'up', 'params': ['q', 'k', 'v', 'o'], 'lr': 5e-5, 'dropout_rate': 0.3, 'r': 32, 'alpha': 32.0},
+        {'position': 'up', 'params': ['q', 'k', 'v', 'o'], 'lr': 1e-5, 'dropout_rate': 0.2, 'r': 4, 'alpha': 1.25},
         # {'position': 'up', 'params': ['o'], 'lr': 5e-5, 'dropout_rate': 0.3, 'r': 4, 'alpha': 0.75},
         # {'position': 'mid', 'params': ['o'], 'lr': 2e-4 , 'dropout_rate': 0.1, 'r': 4, 'alpha': 0.50},
         # {'position': 'half-up', 'params': ['q', 'k', 'v', 'o'], 'lr': 1e-5, 'dropout_rate': 0.3, 'r': 8, 'alpha': 0.25},
@@ -172,6 +181,7 @@ if __name__ == '__main__':
         args.lr = combo['lr']
         args.dropout_rate = combo['dropout_rate']
         args.r = combo['r']
+        args.alpha = combo['alpha']
 
         param_str = f"pos_{args.position}_params_{'-'.join(args.params)}_lr_{args.lr}_r_{args.r}_drop_{args.dropout_rate}_alpha_{args.alpha}"
         save_path = os.path.join(f'results_{args.dataset}', 'training', param_str)
